@@ -53,22 +53,21 @@ def match_keypoints(descriptors1, descriptors2):
             good_matches.append(m)
     return good_matches
 
-def find_best_match(input_descriptors, keypoints_dict):
-    best_match = None
-    best_match_count = 0
-    best_match_keypoints = []
+def find_top_matches(input_descriptors, keypoints_dict, top_x=-1):
+    top_matches = []
     
     for folder_name, folder_data in keypoints_dict.items():
         for image_name, image_data in folder_data.items():
             descriptors = image_data['descriptors']
             good_matches = match_keypoints(input_descriptors, descriptors)
             match_count = len(good_matches)
-            if match_count > best_match_count:
-                best_match = (folder_name, image_name)
-                best_match_count = match_count
-                best_match_keypoints = good_matches
-        
-    return best_match, best_match_count, best_match_keypoints
+            l2_distance = sum([m.distance for m in good_matches]) if good_matches else float('inf')
+            top_matches.append((folder_name, image_name, match_count, l2_distance, good_matches))
+    
+    top_matches.sort(key=lambda x: (x[2], x[3]))
+    top_matches = top_matches[:top_x] if top_x > 0 else top_matches
+    
+    return top_matches
 
 def main():
     st.title('The Lost Student ICVL Project')    
@@ -82,18 +81,18 @@ def main():
         
         input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image)
         with st.spinner('Finding Where You Are...'):
-            best_match, match_count, top_matches = find_best_match(input_descriptors, keypoints_dict)
+            top_matches = find_top_matches(input_descriptors, keypoints_dict)
         
-        st.write(f"Best match: {best_match[0]}/{best_match[1]}")
-        st.write(f"Number of matches: {match_count}")
+        for idx, (folder_name, image_name, match_count, _, top_match_keypoints) in enumerate(top_matches):
+            st.write(f"Match {idx+1}: {folder_name}/{image_name}")
+            st.write(f"Number of matches: {match_count}")
 
-        best_match_folder, best_match_image = best_match
-        best_match_image_path = os.path.join(images_folder, best_match_folder, best_match_image)
-        best_match_img = cv.imread(best_match_image_path)
-        best_match_keypoints, _ = extract_keypoints_and_descriptors(best_match_img)
+            image_path = os.path.join(images_folder, folder_name, image_name)
+            match_image = cv.imread(image_path)
+            match_keypoints, _ = extract_keypoints_and_descriptors(match_image)
 
-        img_matches = cv.drawMatches(input_image, input_keypoints, best_match_img, best_match_keypoints, top_matches, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-        st.image(img_matches[:, :, ::-1], caption=f'Best Match: {best_match[0]}/{best_match[1]}', use_column_width=True)
+            img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+            st.image(img_matches[:, :, ::-1], caption=f'Match {idx+1}: {folder_name}/{image_name}', use_column_width=True)
 
 if __name__ == "__main__":
     main()
