@@ -4,27 +4,34 @@ import os
 import streamlit as st
 from stqdm import stqdm
 
-def extract_keypoints_and_descriptors(img, res=(1280, 960), interpolation=cv.INTER_AREA):
-    img_resized = img
-    # img_resized = cv.resize(img, res, interpolation=interpolation)
+def extract_keypoints_and_descriptors(img, resize_factor=0.25, interpolation=cv.INTER_AREA):
+    # if resize_factor != 1.0:
+        # img_resized = cv.resize(img, None, fx=resize_factor, fy=resize_factor, interpolation=interpolation)
+    # else:
+        # img_resized = img
+
+    # orb = cv.ORB_create()
+    # kp = orb.detect(img,None)
+    # keypoints, descriptors = orb.compute(img, kp)
+
     sift = cv.SIFT_create()
-    keypoints, descriptors = sift.detectAndCompute(img_resized, None)
+    keypoints, descriptors = sift.detectAndCompute(img, None)
 
-    # for kp in keypoints:
-        # kp.pt = (kp.pt[0] * img.shape[1] / res[0], kp.pt[1] * img.shape[0] / res[1])
-
-    # scale_x = img.shape[1] / res[0]
-    # scale_y = img.shape[0] / res[1]
-    # if descriptors is not None:
-        # for i in range(len(descriptors)):
-            # descriptors[i, 0::4] *= scale_x
-            # descriptors[i, 1::4] *= scale_y
+    # if resize_factor != 1.0:
+    #     scale_x = img.shape[1] / img_resized.shape[1]
+    #     scale_y = img.shape[0] / img_resized.shape[0]
+    #     for kp in keypoints:
+    #         kp.pt = (kp.pt[0] * scale_x, kp.pt[1] * scale_y)
 
     return keypoints, descriptors
 
-@st.cache_resource
+@st.cache_resource(show_spinner = False)
 def extract_keypoints_descriptors_dict(images_folder):
     keypoints_dict = {}
+    progress_text = "Doing some heavy lifting know so you won't have to wait later."
+    progress_bar = st.progress(0, text=progress_text)
+    total_images = sum(len(files) for _, _, files in os.walk(images_folder))
+    current_image_count = 0
 
     for folder_name in os.listdir(images_folder):
         folder_path = os.path.join(images_folder, folder_name)
@@ -36,26 +43,32 @@ def extract_keypoints_descriptors_dict(images_folder):
             image = cv.imread(image_path)
             keypoints, descriptors = extract_keypoints_and_descriptors(image)
             folder_data[image_name] = {'keypoints': keypoints, 'descriptors': descriptors}
-        
-        keypoints_dict[folder_name] = folder_data
 
+            current_image_count += 1
+            progress_bar.progress(current_image_count / total_images, text=progress_text)
+
+        keypoints_dict[folder_name] = folder_data
+    progress_bar.empty()
     return keypoints_dict
 
 def match_keypoints(descriptors1, descriptors2):
-    FLANN_INDEX_KDTREE = 1
-    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-    search_params = dict(checks=50)
-    flann = cv.FlannBasedMatcher(index_params, search_params)
-    matches = flann.knnMatch(descriptors1, descriptors2, k=2)
+    bf = cv.BFMatcher()
+    matches = bf.knnMatch(descriptors1, descriptors2, k=2)
+    
+    # Apply ratio test
     good_matches = []
-    for m, n in matches:
+    for m,n in matches:
         if m.distance < 0.75 * n.distance:
             good_matches.append(m)
     return good_matches
 
-def find_top_matches(input_descriptors, keypoints_dict, top_x=-1):
+def find_top_matches(input_descriptors, keypoints_dict, images_folder, top_x=10):
     top_matches = []
-    
+    progress_text = "Finding where you are, hold on tight!"
+    progress_bar = st.progress(0, text=progress_text)
+    total_images = sum(len(files) for _, _, files in os.walk(images_folder))
+    current_image_count = 0
+
     for folder_name, folder_data in keypoints_dict.items():
         for image_name, image_data in folder_data.items():
             descriptors = image_data['descriptors']
@@ -63,10 +76,14 @@ def find_top_matches(input_descriptors, keypoints_dict, top_x=-1):
             match_count = len(good_matches)
             l2_distance = sum([m.distance for m in good_matches]) if good_matches else float('inf')
             top_matches.append((folder_name, image_name, match_count, l2_distance, good_matches))
-    
-    top_matches.sort(key=lambda x: (x[2], x[3]))
+            
+            current_image_count += 1
+            progress_bar.progress(current_image_count / total_images, text=progress_text)
+    progress_bar.empty()
+
+    top_matches.sort(key=lambda x: (x[2], x[3]), reverse=True)
     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
-    
+
     return top_matches
 
 def main():
@@ -79,9 +96,10 @@ def main():
         input_image = cv.imdecode(np.fromstring(uploaded_file.read(), np.uint8), cv.IMREAD_COLOR)
         st.image(input_image[:, :, ::-1], caption='Uploaded Image', use_column_width=True)
         
+        std_size = (4032, 1816)
+        input_image = cv.resize(input_image, std_size)
         input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image)
-        with st.spinner('Finding Where You Are...'):
-            top_matches = find_top_matches(input_descriptors, keypoints_dict)
+        top_matches = find_top_matches(input_descriptors, keypoints_dict, images_folder)
         
         for idx, (folder_name, image_name, match_count, _, top_match_keypoints) in enumerate(top_matches):
             st.write(f"Match {idx+1}: {folder_name}/{image_name}")
