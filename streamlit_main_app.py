@@ -17,8 +17,8 @@ import torch
 import numpy as np
 from multiprocessing import Pool, cpu_count
 from io import BytesIO
-device = K.utils.get_cuda_or_mps_device_if_available()
-
+# device = K.utils.get_cuda_or_mps_device_if_available()
+device='cpu'
 @st.cache_resource  # 👈 Add the caching decorator
 def load_model():
     return KF.DISK.from_pretrained("depth").to(device), KF.LightGlueMatcher("disk").eval().to(device),
