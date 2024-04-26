@@ -3,24 +3,19 @@ import concurrent.futures
 
 import pickle
 
-import cv2 as cv
 import cv2
 import kornia
-import numpy as np
-import os
 import streamlit as st
-import cv2
 import kornia as K
 import kornia.feature as KF
-import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
-import torch
 from kornia.feature.adalam import AdalamFilter
 from kornia_moons.viz import *
 from collections import defaultdict
-
-import cv2
+import os
+import torch
+import numpy as np
+from multiprocessing import Pool, cpu_count
 from io import BytesIO
 device = K.utils.get_cuda_or_mps_device_if_available()
 
@@ -75,7 +70,7 @@ def extract_keypoints_and_descriptors(img):
 
     return kps1, descs1
 def process_image(image_path):
-    image = cv.imread(image_path)
+    image = cv2.imread(image_path)
     image = white_balance_grayworld(image)
     image = kornia.image_to_tensor(image, keepdim=False)
     image = kornia.color.bgr_to_rgb(image)
@@ -151,10 +146,10 @@ def extract_keypoints_descriptors_dict(images_folder):
 #     progress_bar.empty()
 #     return keypoints_dict
 def match_keypoints(descriptors1, descriptors2):
-    bf = cv.BFMatcher()
+    bf = cv2.BFMatcher()
 
     # bf = cv.FlannBasedMatcher(indexParams=dict(algorithm=0, trees=5), searchParams=dict(checks=50))
-    bf = cv.DescriptorMatcher_create(cv.DescriptorMatcher_FLANNBASED)
+    bf = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_FLANNBASED)
 
     matches = bf.knnMatch(descriptors1, descriptors2, k=2)
     
@@ -206,11 +201,7 @@ def match_keypoints(descriptors1, descriptors2):
 #     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
 #
 #     return top_matches
-import os
-import cv2
-import torch
-import numpy as np
-from multiprocessing import Pool, cpu_count
+
 def get_matching_keypoints(kp1, kp2, idxs):
     mkpts1 = kp1[idxs[:, 0]]
     mkpts2 = kp2[idxs[:, 1]]
@@ -264,7 +255,7 @@ def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_
     return top_matches
 @st.cache_data
 def load_image_from_web(uploaded_file):
-    input_image = cv.imdecode(np.fromstring(uploaded_file.read(), np.uint8), cv.IMREAD_COLOR)
+    input_image = cv2.imdecode(np.fromstring(uploaded_file.read(), np.uint8), cv2.IMREAD_COLOR)
     return input_image
 
 def main():
@@ -316,7 +307,7 @@ def main():
             st.write(f"Number of matches: {match_count}")
 
             image_path = os.path.join(images_folder, folder_name, image_name)
-            match_image = cv.imread(image_path)
+            match_image = cv2.imread(image_path)
             # match_image = white_balance_grayworld(match_image)
             # match_image = cv.resize(match_image, (1280,720),cv.INTER_LINEAR)
             match_image = kornia.image_to_tensor(match_image, keepdim=False)
