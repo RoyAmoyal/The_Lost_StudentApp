@@ -19,16 +19,15 @@ from multiprocessing import Pool, cpu_count
 from io import BytesIO
 from stqdm import stqdm
 # device = K.utils.get_cuda_or_mps_device_if_available()
-device='cpu'
 # @st.cache_resource  # 👈 Add the caching decorator
-def load_model():
+def load_model(device='cpu'):
     return KF.DISK.from_pretrained("depth").to(device), KF.LightGlueMatcher("disk").eval().to(device),
 
 # lg_matcher = KF.LightGlueMatcher("disk").eval().to(device)
 #
 # disk = KF.DISK.from_pretrained("depth").to(device)
-disk,lg_matcher = load_model()
-num_features = 2048
+# disk,lg_matcher = load_model()
+# num_features = 2048
 def white_balance_grayworld(image):
     avg_b = np.mean(image[:,:,0])
     avg_g = np.mean(image[:,:,1])
@@ -60,7 +59,7 @@ def load_keypoints_descriptors_from_file(file_path):
     with open(file_path, 'rb') as f:
         keypoints_dict = pickle.load(f)
     return keypoints_dict
-def extract_keypoints_and_descriptors(img):
+def extract_keypoints_and_descriptors(img,disk,num_features=2048):
     # image = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     with torch.inference_mode():
         # inp = torch.cat([img1, img2], dim=0)
@@ -70,13 +69,13 @@ def extract_keypoints_and_descriptors(img):
         # lafs1 = KF.laf_from_center_scale_ori(kps1[None], torch.ones(1, len(kps1), 1, 1, device=device))
 
     return kps1, descs1
-def process_image(image_path):
+def process_image(image_path,disk):
     image = cv2.imread(image_path)
     image = white_balance_grayworld(image)
     image = kornia.image_to_tensor(image, keepdim=False)
     image = kornia.color.bgr_to_rgb(image)
     image = K.geometry.resize(image, (640, 480)) / 255
-    keypoints, descriptors = extract_keypoints_and_descriptors(image)
+    keypoints, descriptors = extract_keypoints_and_descriptors(image,disk)
     return keypoints, descriptors
 def extract_keypoints_descriptors_dict(images_folder):
     keypoints_dict = {}
@@ -207,7 +206,7 @@ def get_matching_keypoints(kp1, kp2, idxs):
     mkpts1 = kp1[idxs[:, 0]]
     mkpts2 = kp2[idxs[:, 1]]
     return mkpts1, mkpts2
-def process_image(folder_name, image_name, image_data, input_keypoints, input_descriptors):
+def process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher,device='cpu'):
     kps1, descs1 = image_data['keypoints'],  image_data['descriptors']
 
     # Your processing logic here
@@ -257,13 +256,13 @@ def process_image(folder_name, image_name, image_data, input_keypoints, input_de
 #     return top_matches
 # #
 
-def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, top_x=5):
+def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder,lg_matcher, top_x=5):
     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
     progress_text = "Finding where you are, hold on tight!"
     top_matches = []
 
     with Pool(cpu_count()) as pool:
-        progress_bar = stqdm(pool.imap(process_image_wrapper, ((folder_name, image_name, image_data, input_keypoints, input_descriptors)
+        progress_bar = stqdm(pool.imap(process_image_wrapper, ((folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher)
                                                               for folder_name, folder_data in keypoints_dict.items()
                                                               for image_name, image_data in folder_data.items())),
                              total=total_images, desc=progress_text)
@@ -277,8 +276,8 @@ def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_
     return top_matches
 
 def process_image_wrapper(args):
-    folder_name, image_name, image_data, input_keypoints, input_descriptors = args
-    result = process_image(folder_name, image_name, image_data, input_keypoints, input_descriptors)
+    folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher = args
+    result = process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher)
     return result
 # def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, top_x=5):
 #     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
@@ -308,6 +307,9 @@ def load_image_from_web(uploaded_file):
 def main():
     st.title('The Lost Student ICVL Project')
     uploaded_file = st.sidebar.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
+    device = 'cpu'
+    disk, lg_matcher = load_model()
+    num_features = 2048
     dir_path = os.path.dirname(os.path.realpath(__file__))
     dir_path = dir_path.replace("\\", "/")
     print(dir_path)
@@ -344,8 +346,8 @@ def main():
         input_image = kornia.image_to_tensor(input_image,keepdim=False)
         input_image = kornia.color.bgr_to_rgb(input_image)
         input_image = K.geometry.resize(input_image, (640, 480)) / 255
-        input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image)
-        top_matches = find_top_matches(input_keypoints,input_descriptors, keypoints_dict, images_folder)
+        input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image,disk=disk)
+        top_matches = find_top_matches(input_keypoints,input_descriptors, keypoints_dict, images_folder,lg_matcher)
         count_dict = defaultdict(int)
         for idx, (folder_name, image_name, match_count, _, top_match_keypoints,kps1,descs1,idxs) in enumerate(top_matches):
             count_dict[folder_name] += 1
