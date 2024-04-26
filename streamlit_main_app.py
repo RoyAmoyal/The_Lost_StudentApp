@@ -261,7 +261,7 @@ def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_
     progress_text = "Finding where you are, hold on tight!"
     top_matches = []
 
-    with Pool(cpu_count()) as pool:
+    with Pool(1) as pool:
         progress_bar = stqdm(pool.imap(process_image_wrapper, ((folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher)
                                                               for folder_name, folder_data in keypoints_dict.items()
                                                               for image_name, image_data in folder_data.items())),
