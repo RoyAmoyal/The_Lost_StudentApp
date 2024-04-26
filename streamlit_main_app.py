@@ -368,7 +368,9 @@ def main():
             st.write(f"Number of matches: {match_count}")
 
             image_path = os.path.join(images_folder, folder_name, image_name)
-            match_image = cv2.imread(image_path)
+            match_image = None
+            with lock:
+                match_image = cv2.imread(image_path)
             # match_image = white_balance_grayworld(match_image)
             # match_image = cv.resize(match_image, (1280,720),cv.INTER_LINEAR)
             match_image = kornia.image_to_tensor(match_image, keepdim=False)
@@ -379,33 +381,32 @@ def main():
             print(idxs.shape)
             print(KF.laf_from_center_scale_ori(input_keypoints[None].cpu()).shape)
             print(KF.laf_from_center_scale_ori(match_keypoints[None].cpu()).shape)
-
-            draw_LAF_matches(
-                KF.laf_from_center_scale_ori(match_keypoints[None].cpu()),
-                KF.laf_from_center_scale_ori(input_keypoints[None].cpu()),
-                idxs.cpu(),
-                K.tensor_to_image(match_image.cpu()),
-                K.tensor_to_image(input_image.cpu()),
-                top_match_keypoints,
-                draw_dict={"inlier_color": (0.2, 1, 0.2), "tentative_color": (1, 1, 0.2, 0.3), "feature_color": None,
-                           "vertical": False}, return_fig_ax=True
-            )
+            with lock:
+                draw_LAF_matches(
+                    KF.laf_from_center_scale_ori(match_keypoints[None].cpu()),
+                    KF.laf_from_center_scale_ori(input_keypoints[None].cpu()),
+                    idxs.cpu(),
+                    K.tensor_to_image(match_image.cpu()),
+                    K.tensor_to_image(input_image.cpu()),
+                    top_match_keypoints,
+                    draw_dict={"inlier_color": (0.2, 1, 0.2), "tentative_color": (1, 1, 0.2, 0.3), "feature_color": None,
+                               "vertical": False}, return_fig_ax=True
+                )
 
             # Assuming your matplotlib plot is generated as before
+                # Render the matplotlib plot to a buffer
+                buf = BytesIO()
+                plt.savefig(buf, format='png')
+                buf.seek(0)
 
-            # Render the matplotlib plot to a buffer
-            buf = BytesIO()
-            plt.savefig(buf, format='png')
-            buf.seek(0)
+                # Convert the buffer to a numpy array
+                buffer_img = np.frombuffer(buf.getvalue(), dtype=np.uint8)
+                plt.close()  # Close the matplotlib plot to free resources
 
-            # Convert the buffer to a numpy array
-            buffer_img = np.frombuffer(buf.getvalue(), dtype=np.uint8)
-            plt.close()  # Close the matplotlib plot to free resources
-
-            # Convert the numpy array to an OpenCV image
-            opencv_img = cv2.imdecode(buffer_img, 1)
-            # img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-            st.image(opencv_img[:, :, ::-1], caption=f'Match {idx+1}: {folder_name}/{image_name}', use_column_width=True)
+                # Convert the numpy array to an OpenCV image
+                opencv_img = cv2.imdecode(buffer_img, 1)
+                # img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+                st.image(opencv_img[:, :, ::-1], caption=f'Match {idx+1}: {folder_name}/{image_name}', use_column_width=True)
         most_common_folder = max(count_dict, key=count_dict.get)
         print("THE FOLDER WINNER IS ",most_common_folder)
         st.write("THE FOLDER WINNER IS ", most_common_folder)
