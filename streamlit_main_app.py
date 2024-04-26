@@ -22,13 +22,16 @@ from collections import defaultdict
 
 import cv2
 from io import BytesIO
-
 device = K.utils.get_cuda_or_mps_device_if_available()
 
-lg_matcher = KF.LightGlueMatcher("disk").eval().to(device)
+@st.cache_resource  # 👈 Add the caching decorator
+def load_model():
+    return KF.DISK.from_pretrained("depth").to(device), KF.LightGlueMatcher("disk").eval().to(device),
 
-disk = KF.DISK.from_pretrained("depth").to(device)
-
+# lg_matcher = KF.LightGlueMatcher("disk").eval().to(device)
+#
+# disk = KF.DISK.from_pretrained("depth").to(device)
+disk,lg_matcher = load_model()
 num_features = 2048
 def white_balance_grayworld(image):
     avg_b = np.mean(image[:,:,0])
@@ -50,16 +53,17 @@ def white_balance_grayworld(image):
 
     return balanced_image.astype(np.uint8)
 # Function to save keypoints and descriptors to file
+@st.cache_data
 def save_keypoints_descriptors_to_file(keypoints_dict, file_path):
     with open(file_path, 'wb') as f:
         pickle.dump(keypoints_dict, f)
 
 # Function to load keypoints and descriptors from file
+@st.cache_data
 def load_keypoints_descriptors_from_file(file_path):
     with open(file_path, 'rb') as f:
         keypoints_dict = pickle.load(f)
     return keypoints_dict
-
 def extract_keypoints_and_descriptors(img):
     # image = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     with torch.inference_mode():
@@ -70,7 +74,6 @@ def extract_keypoints_and_descriptors(img):
         # lafs1 = KF.laf_from_center_scale_ori(kps1[None], torch.ones(1, len(kps1), 1, 1, device=device))
 
     return kps1, descs1
-
 def process_image(image_path):
     image = cv.imread(image_path)
     image = white_balance_grayworld(image)
@@ -79,7 +82,6 @@ def process_image(image_path):
     image = K.geometry.resize(image, (640, 480)) / 255
     keypoints, descriptors = extract_keypoints_and_descriptors(image)
     return keypoints, descriptors
-
 def extract_keypoints_descriptors_dict(images_folder):
     keypoints_dict = {}
     progress_text = "Doing some heavy lifting know so you won't have to wait later."
@@ -148,7 +150,6 @@ def extract_keypoints_descriptors_dict(images_folder):
 #         keypoints_dict[folder_name] = folder_data
 #     progress_bar.empty()
 #     return keypoints_dict
-
 def match_keypoints(descriptors1, descriptors2):
     bf = cv.BFMatcher()
 
@@ -210,17 +211,18 @@ import cv2
 import torch
 import numpy as np
 from multiprocessing import Pool, cpu_count
-
 def get_matching_keypoints(kp1, kp2, idxs):
     mkpts1 = kp1[idxs[:, 0]]
     mkpts2 = kp2[idxs[:, 1]]
     return mkpts1, mkpts2
-
 def process_image(folder_name, image_name, image_data, input_keypoints, input_descriptors):
     kps1, descs1 = image_data['keypoints'],  image_data['descriptors']
 
     # Your processing logic here
     # For simplicity, let's just calculate the match count as the number of keypoints
+    # hw1 = torch.tensor((640,480), device=device)
+    # hw2 = torch.tensor((640,480), device=device)
+
     dists, idxs = lg_matcher(descs1, input_descriptors, KF.laf_from_center_scale_ori(kps1[None],
                                                                                      torch.ones(1, len(kps1), 1, 1,
                                                                                                 device=device)),
@@ -237,7 +239,6 @@ def process_image(folder_name, image_name, image_data, input_keypoints, input_de
     match_count = inliers.shape[0]
 
     return (folder_name, image_name, match_count, 0, inliers, kps1, descs1, idxs)
-
 def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, top_x=5):
     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
     progress_text = "Finding where you are, hold on tight!"
@@ -261,9 +262,13 @@ def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_
     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
 
     return top_matches
+@st.cache_data
+def load_image_from_web(uploaded_file):
+    input_image = cv.imdecode(np.fromstring(uploaded_file.read(), np.uint8), cv.IMREAD_COLOR)
+    return input_image
 
 def main():
-    st.title('The Lost Student ICVL Project')    
+    st.title('The Lost Student ICVL Project')
     uploaded_file = st.sidebar.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
     dir_path = os.path.dirname(os.path.realpath(__file__))
     dir_path = dir_path.replace("\\", "/")
@@ -283,7 +288,7 @@ def main():
 
     # uploaded_file = True
     if uploaded_file is not None:
-        input_image = cv.imdecode(np.fromstring(uploaded_file.read(), np.uint8), cv.IMREAD_COLOR)
+        input_image = load_image_from_web(uploaded_file)
         st.image(input_image[:, :, ::-1], caption='Uploaded Image', use_column_width=True)
         input_image = white_balance_grayworld(input_image)
 
@@ -318,12 +323,17 @@ def main():
             match_image = kornia.color.bgr_to_rgb(match_image)
             match_image = K.geometry.resize(match_image, (640, 480)) / 255
             match_keypoints = keypoints_dict[folder_name][image_name]['keypoints']
+            print(top_match_keypoints.shape)
+            print(idxs.shape)
+            print(KF.laf_from_center_scale_ori(input_keypoints[None].cpu()).shape)
+            print(KF.laf_from_center_scale_ori(match_keypoints[None].cpu()).shape)
+
             draw_LAF_matches(
-                KF.laf_from_center_scale_ori(input_keypoints[None].cpu()),
                 KF.laf_from_center_scale_ori(match_keypoints[None].cpu()),
+                KF.laf_from_center_scale_ori(input_keypoints[None].cpu()),
                 idxs.cpu(),
-                K.tensor_to_image(input_image.cpu()),
                 K.tensor_to_image(match_image.cpu()),
+                K.tensor_to_image(input_image.cpu()),
                 top_match_keypoints,
                 draw_dict={"inlier_color": (0.2, 1, 0.2), "tentative_color": (1, 1, 0.2, 0.3), "feature_color": None,
                            "vertical": False}, return_fig_ax=True
