@@ -309,10 +309,10 @@ def load_image_from_web(uploaded_file):
     return input_image
 
 def main():
-    st.title('The Lost Student ICVL Project')
-    uploaded_file = st.sidebar.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
     device = 'cpu'
-    with lock:
+    st.title('The Lost Student ICVL Project')
+    with Lock:
+        uploaded_file = st.sidebar.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
         disk, lg_matcher = load_model()
     num_features = 2048
     dir_path = os.path.dirname(os.path.realpath(__file__))
