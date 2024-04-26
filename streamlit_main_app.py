@@ -2,6 +2,7 @@ import concurrent
 import concurrent.futures
 
 import pickle
+from threading import Lock
 
 import cv2
 import kornia
@@ -20,6 +21,8 @@ from io import BytesIO
 from stqdm import stqdm
 # device = K.utils.get_cuda_or_mps_device_if_available()
 # @st.cache_resource  # 👈 Add the caching decorator
+lock = Lock()
+
 def load_model(device='cpu'):
     return KF.DISK.from_pretrained("depth").to(device), KF.LightGlueMatcher("disk").eval().to(device),
 
@@ -347,8 +350,9 @@ def main():
         input_image = kornia.image_to_tensor(input_image,keepdim=False)
         input_image = kornia.color.bgr_to_rgb(input_image)
         input_image = K.geometry.resize(input_image, (640, 480)) / 255
-        input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image,disk=disk)
-        top_matches = find_top_matches(input_keypoints,input_descriptors, keypoints_dict, images_folder,lg_matcher)
+        with lock:
+            input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image,disk=disk)
+            top_matches = find_top_matches(input_keypoints,input_descriptors, keypoints_dict, images_folder,lg_matcher)
         count_dict = defaultdict(int)
         for idx, (folder_name, image_name, match_count, _, top_match_keypoints,kps1,descs1,idxs) in enumerate(top_matches):
             count_dict[folder_name] += 1
