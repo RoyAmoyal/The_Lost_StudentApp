@@ -315,7 +315,7 @@ def main():
     print(dir_path)
     images_folder = dir_path + "/The_Lost_Student_App/images"
     images_folder = "D:/University/msc/semester a/intro to computational biology and vision/final_project/The_Lost_Student_App/images"
-
+    images_folder = dir_path + "/images"
     keypoints_file = "keypoints_descriptors.pkl"  # File to save/load keypoints and descriptors
 
     # Check if keypoints and descriptors file exists, load them if it does
