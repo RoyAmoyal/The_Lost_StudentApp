@@ -19,7 +19,7 @@ from multiprocessing import Pool, cpu_count
 from io import BytesIO
 # device = K.utils.get_cuda_or_mps_device_if_available()
 device='cpu'
-@st.cache_resource  # 👈 Add the caching decorator
+# @st.cache_resource  # 👈 Add the caching decorator
 def load_model():
     return KF.DISK.from_pretrained("depth").to(device), KF.LightGlueMatcher("disk").eval().to(device),
 
@@ -253,7 +253,7 @@ def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_
     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
 
     return top_matches
-@st.cache_data
+# @st.cache_data
 def load_image_from_web(uploaded_file):
     input_image = cv2.imdecode(np.fromstring(uploaded_file.read(), np.uint8), cv2.IMREAD_COLOR)
     return input_image
