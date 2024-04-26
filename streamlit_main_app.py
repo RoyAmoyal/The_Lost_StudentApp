@@ -312,7 +312,8 @@ def main():
     st.title('The Lost Student ICVL Project')
     uploaded_file = st.sidebar.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
     device = 'cpu'
-    disk, lg_matcher = load_model()
+    with lock:
+        disk, lg_matcher = load_model()
     num_features = 2048
     dir_path = os.path.dirname(os.path.realpath(__file__))
     dir_path = dir_path.replace("\\", "/")
@@ -332,7 +333,8 @@ def main():
 
     # uploaded_file = True
     if uploaded_file is not None:
-        input_image = load_image_from_web(uploaded_file)
+        with lock:
+            input_image = load_image_from_web(uploaded_file)
         st.image(input_image[:, :, ::-1], caption='Uploaded Image', use_column_width=True)
         input_image = white_balance_grayworld(input_image)
 
