@@ -19,12 +19,16 @@ import numpy as np
 from multiprocessing import Pool, cpu_count
 from io import BytesIO
 from stqdm import stqdm
+
 # device = K.utils.get_cuda_or_mps_device_if_available()
 # @st.cache_resource  # 👈 Add the caching decorator
 lock = Lock()
 
+
+@st.cache_resource
 def load_model(device='cpu'):
     return KF.DISK.from_pretrained("depth").to(device), KF.LightGlueMatcher("disk").eval().to(device),
+
 
 # lg_matcher = KF.LightGlueMatcher("disk").eval().to(device)
 #
@@ -32,9 +36,9 @@ def load_model(device='cpu'):
 # disk,lg_matcher = load_model()
 # num_features = 2048
 def white_balance_grayworld(image):
-    avg_b = np.mean(image[:,:,0])
-    avg_g = np.mean(image[:,:,1])
-    avg_r = np.mean(image[:,:,2])
+    avg_b = np.mean(image[:, :, 0])
+    avg_g = np.mean(image[:, :, 1])
+    avg_r = np.mean(image[:, :, 2])
 
     avg_gray = np.mean([avg_b, avg_g, avg_r])
 
@@ -45,16 +49,19 @@ def white_balance_grayworld(image):
 
     # Apply scaling factors to each channel
     balanced_image = np.zeros_like(image, dtype=np.float32)
-    balanced_image[:,:,0] = np.clip(image[:,:,0] * scale_b, 0, 255)
-    balanced_image[:,:,1] = np.clip(image[:,:,1] * scale_g, 0, 255)
-    balanced_image[:,:,2] = np.clip(image[:,:,2] * scale_r, 0, 255)
+    balanced_image[:, :, 0] = np.clip(image[:, :, 0] * scale_b, 0, 255)
+    balanced_image[:, :, 1] = np.clip(image[:, :, 1] * scale_g, 0, 255)
+    balanced_image[:, :, 2] = np.clip(image[:, :, 2] * scale_r, 0, 255)
 
     return balanced_image.astype(np.uint8)
+
+
 # Function to save keypoints and descriptors to file
 @st.cache_data
 def save_keypoints_descriptors_to_file(keypoints_dict, file_path):
     with open(file_path, 'wb') as f:
         pickle.dump(keypoints_dict, f)
+
 
 # Function to load keypoints and descriptors from file
 @st.cache_data
@@ -62,7 +69,9 @@ def load_keypoints_descriptors_from_file(file_path):
     with open(file_path, 'rb') as f:
         keypoints_dict = pickle.load(f)
     return keypoints_dict
-def extract_keypoints_and_descriptors(img,disk,num_features=2048):
+
+
+def extract_keypoints_and_descriptors(img, disk, num_features=2048):
     # image = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     with torch.inference_mode():
         # inp = torch.cat([img1, img2], dim=0)
@@ -72,14 +81,18 @@ def extract_keypoints_and_descriptors(img,disk,num_features=2048):
         # lafs1 = KF.laf_from_center_scale_ori(kps1[None], torch.ones(1, len(kps1), 1, 1, device=device))
 
     return kps1, descs1
-def process_image(image_path,disk):
+
+
+def process_image(image_path, disk):
     image = cv2.imread(image_path)
     image = white_balance_grayworld(image)
     image = kornia.image_to_tensor(image, keepdim=False)
     image = kornia.color.bgr_to_rgb(image)
     image = K.geometry.resize(image, (640, 480)) / 255
-    keypoints, descriptors = extract_keypoints_and_descriptors(image,disk)
+    keypoints, descriptors = extract_keypoints_and_descriptors(image, disk)
     return keypoints, descriptors
+
+
 def extract_keypoints_descriptors_dict(images_folder):
     keypoints_dict = {}
     progress_text = "Doing some heavy lifting know so you won't have to wait later."
@@ -155,13 +168,15 @@ def match_keypoints(descriptors1, descriptors2):
     bf = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_FLANNBASED)
 
     matches = bf.knnMatch(descriptors1, descriptors2, k=2)
-    
+
     # Apply ratio test
     good_matches = []
-    for m,n in matches:
+    for m, n in matches:
         if m.distance < 0.8 * n.distance:
             good_matches.append(m)
     return good_matches.copy()
+
+
 #
 # def find_top_matches(input_keypoints,input_descriptors, keypoints_dict, images_folder, top_x=20):
 #     def get_matching_keypoints(kp1, kp2, idxs):
@@ -209,8 +224,11 @@ def get_matching_keypoints(kp1, kp2, idxs):
     mkpts1 = kp1[idxs[:, 0]]
     mkpts2 = kp2[idxs[:, 1]]
     return mkpts1, mkpts2
-def process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher,device='cpu'):
-    kps1, descs1 = image_data['keypoints'],  image_data['descriptors']
+
+
+def process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors, lg_matcher,
+                        device='cpu'):
+    kps1, descs1 = image_data['keypoints'], image_data['descriptors']
 
     # Your processing logic here
     # For simplicity, let's just calculate the match count as the number of keypoints
@@ -237,6 +255,8 @@ def process_match_image(folder_name, image_name, image_data, input_keypoints, in
     match_count = inliers.shape[0]
 
     return (folder_name, image_name, match_count, 0, inliers, kps1, descs1, idxs)
+
+
 # def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, top_x=5):
 #     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
 #     progress_text = "Finding where you are, hold on tight!"
@@ -283,11 +303,12 @@ def process_match_image(folder_name, image_name, image_data, input_keypoints, in
 #     return top_matches
 
 def process_image_wrapper(args):
-    folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher = args
-    result = process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher)
+    folder_name, image_name, image_data, input_keypoints, input_descriptors, lg_matcher = args
+    result = process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors, lg_matcher)
     return result
 
-def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, lg_matcher,top_x=5):
+
+def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, lg_matcher, top_x=5):
     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
     progress_text = "Finding where you are, hold on tight!"
     current_image_count = 0
@@ -296,7 +317,8 @@ def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_
     progress_bar = st.progress(0, text=progress_text)
     for folder_name, folder_data in keypoints_dict.items():
         for image_name, image_data in folder_data.items():
-            result = process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher)
+            result = process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors,
+                                         lg_matcher)
             top_matches.append(result)
             current_image_count += 1
             progress_bar.progress(current_image_count / total_images, text=progress_text)
@@ -307,10 +329,13 @@ def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_
     progress_bar.empty()
 
     return top_matches
+
+
 # @st.cache_data
 def load_image_from_web(uploaded_file):
     input_image = cv2.imdecode(np.fromstring(uploaded_file.read(), np.uint8), cv2.IMREAD_COLOR)
     return input_image
+
 
 def main():
     st.title('The Lost Student ICVL Project')
@@ -350,21 +375,23 @@ def main():
         # input_image = white_balance_grayworld(input_image)
         # st.image(input_image[:, :, ::-1], caption='Uploaded Image', use_column_width=True)
 
-        std_size = (640,480)
+        std_size = (640, 480)
         # input_image = cv.resize(input_image, std_size)
         # input_image = cv.resize(input_image, (1280,720), cv.INTER_LINEAR)
         # input_image = cv.cvtColor(input_image,cv.COLOR_BGR2GRAY)
-        input_image = kornia.image_to_tensor(input_image,keepdim=False)
+        input_image = kornia.image_to_tensor(input_image, keepdim=False)
         input_image = kornia.color.bgr_to_rgb(input_image)
         input_image = K.geometry.resize(input_image, (640, 480)) / 255
         with lock:
-            input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image,disk=disk)
-            top_matches = find_top_matches(input_keypoints,input_descriptors, keypoints_dict, images_folder,lg_matcher)
+            input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image, disk=disk)
+            top_matches = find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder,
+                                           lg_matcher)
         count_dict = defaultdict(int)
-        for idx, (folder_name, image_name, match_count, _, top_match_keypoints,kps1,descs1,idxs) in enumerate(top_matches):
+        for idx, (folder_name, image_name, match_count, _, top_match_keypoints, kps1, descs1, idxs) in enumerate(
+                top_matches):
             count_dict[folder_name] += 1
 
-            st.write(f"Match {idx+1}: {folder_name}/{image_name}")
+            st.write(f"Match {idx + 1}: {folder_name}/{image_name}")
             st.write(f"Number of matches: {match_count}")
 
             image_path = os.path.join(images_folder, folder_name, image_name)
@@ -389,11 +416,12 @@ def main():
                     K.tensor_to_image(match_image.cpu()),
                     K.tensor_to_image(input_image.cpu()),
                     top_match_keypoints,
-                    draw_dict={"inlier_color": (0.2, 1, 0.2), "tentative_color": (1, 1, 0.2, 0.3), "feature_color": None,
+                    draw_dict={"inlier_color": (0.2, 1, 0.2), "tentative_color": (1, 1, 0.2, 0.3),
+                               "feature_color": None,
                                "vertical": False}, return_fig_ax=True
                 )
 
-            # Assuming your matplotlib plot is generated as before
+                # Assuming your matplotlib plot is generated as before
                 # Render the matplotlib plot to a buffer
                 buf = BytesIO()
                 plt.savefig(buf, format='png')
@@ -406,9 +434,12 @@ def main():
                 # Convert the numpy array to an OpenCV image
                 opencv_img = cv2.imdecode(buffer_img, 1)
                 # img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-                st.image(opencv_img[:, :, ::-1], caption=f'Match {idx+1}: {folder_name}/{image_name}', use_column_width=True)
+                st.image(opencv_img[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
+                         use_column_width=True)
         most_common_folder = max(count_dict, key=count_dict.get)
-        print("THE FOLDER WINNER IS ",most_common_folder)
+        print("THE FOLDER WINNER IS ", most_common_folder)
         st.write("THE FOLDER WINNER IS ", most_common_folder)
+
+
 if __name__ == "__main__":
     main()
