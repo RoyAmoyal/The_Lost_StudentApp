@@ -17,6 +17,7 @@ import torch
 import numpy as np
 from multiprocessing import Pool, cpu_count
 from io import BytesIO
+from stqdm import stqdm
 # device = K.utils.get_cuda_or_mps_device_if_available()
 device='cpu'
 # @st.cache_resource  # 👈 Add the caching decorator
@@ -230,29 +231,75 @@ def process_image(folder_name, image_name, image_data, input_keypoints, input_de
     match_count = inliers.shape[0]
 
     return (folder_name, image_name, match_count, 0, inliers, kps1, descs1, idxs)
+# def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, top_x=5):
+#     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
+#     progress_text = "Finding where you are, hold on tight!"
+#     current_image_count = 0
+#     top_matches = []
+#     progress_bar = st.progress(0, text=progress_text)
+#     def update_progress(result):
+#         nonlocal current_image_count
+#         current_image_count += 1
+#         print(f"{progress_text} ({current_image_count}/{total_images})")
+#         progress_bar.progress(current_image_count / total_images, text=progress_text)
+#         top_matches.append(result)
+#
+#     with Pool(cpu_count()) as pool:
+#         for folder_name, folder_data in keypoints_dict.items():
+#             for image_name, image_data in folder_data.items():
+#                 pool.apply_async(process_image, args=(folder_name, image_name, image_data, input_keypoints, input_descriptors), callback=update_progress)
+#         pool.close()
+#         pool.join()
+#     progress_bar.empty()
+#     top_matches.sort(key=lambda x: x[2], reverse=True)
+#     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
+#
+#     return top_matches
+# #
+
 def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, top_x=5):
     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
     progress_text = "Finding where you are, hold on tight!"
-    current_image_count = 0
     top_matches = []
 
-    def update_progress(result):
-        nonlocal current_image_count
-        current_image_count += 1
-        print(f"{progress_text} ({current_image_count}/{total_images})")
-        top_matches.append(result)
-
     with Pool(cpu_count()) as pool:
-        for folder_name, folder_data in keypoints_dict.items():
-            for image_name, image_data in folder_data.items():
-                pool.apply_async(process_image, args=(folder_name, image_name, image_data, input_keypoints, input_descriptors), callback=update_progress)
-        pool.close()
-        pool.join()
+        progress_bar = stqdm(pool.imap(process_image_wrapper, ((folder_name, image_name, image_data, input_keypoints, input_descriptors)
+                                                              for folder_name, folder_data in keypoints_dict.items()
+                                                              for image_name, image_data in folder_data.items())),
+                             total=total_images, desc=progress_text)
+
+        for result in progress_bar:
+            top_matches.append(result)
 
     top_matches.sort(key=lambda x: x[2], reverse=True)
     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
 
     return top_matches
+
+def process_image_wrapper(args):
+    folder_name, image_name, image_data, input_keypoints, input_descriptors = args
+    result = process_image(folder_name, image_name, image_data, input_keypoints, input_descriptors)
+    return result
+# def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, top_x=5):
+#     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
+#     progress_text = "Finding where you are, hold on tight!"
+#     current_image_count = 0
+#     top_matches = []
+#     progress_text = "Finding your location..."
+#     progress_bar = st.progress(0, text=progress_text)
+#     for folder_name, folder_data in keypoints_dict.items():
+#         for image_name, image_data in folder_data.items():
+#             result = process_image(folder_name, image_name, image_data, input_keypoints, input_descriptors)
+#             top_matches.append(result)
+#             current_image_count += 1
+#             progress_bar.progress(current_image_count / total_images, text=progress_text)
+#             print(f"{progress_text} ({current_image_count}/{total_images})")
+#
+#     top_matches.sort(key=lambda x: x[2], reverse=True)
+#     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
+#     progress_bar.empty()
+#
+#     return top_matches
 # @st.cache_data
 def load_image_from_web(uploaded_file):
     input_image = cv2.imdecode(np.fromstring(uploaded_file.read(), np.uint8), cv2.IMREAD_COLOR)
