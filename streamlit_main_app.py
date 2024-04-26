@@ -225,10 +225,14 @@ def process_match_image(folder_name, image_name, image_data, input_keypoints, in
 
     mkpts1, mkpts2 = get_matching_keypoints(kps1, input_keypoints, idxs)
 
-    Fm, inliers = cv2.findFundamentalMat(
-        mkpts1.detach().cpu().numpy(), mkpts2.detach().cpu().numpy(), cv2.USAC_MAGSAC, 1.0, 0.999, 100000
-    )
-    inliers = inliers > 0
+    try:
+        Fm, inliers = cv2.findFundamentalMat(
+            mkpts1.detach().cpu().numpy(), mkpts2.detach().cpu().numpy(),
+        )
+        inliers = inliers > 0
+    except cv2.error as e:
+        print("Error in cv2.findFundamentalMat:", e)
+        inliers = dists < 0.8  # Assuming this condition indicates good matches
 
     match_count = inliers.shape[0]
 
