@@ -19,10 +19,36 @@ import numpy as np
 from multiprocessing import Pool, cpu_count
 from io import BytesIO
 from stqdm import stqdm
+import torchvision.transforms as T
+
 
 # device = K.utils.get_cuda_or_mps_device_if_available()
 # @st.cache_resource  # 👈 Add the caching decorator
 lock = Lock()
+
+
+def calculate_color_histogram(image):
+    # Convert the image to the HSV color space
+    hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+    # Calculate the color histogram
+    hist = cv2.calcHist([hsv_image], [0, 1], None, [180, 256], [0, 180, 0, 256])
+
+    # Normalize the histogram
+    cv2.normalize(hist, hist)
+
+    return hist.flatten()
+
+
+def compare_histograms(hist1, hist2, threshold=0.15):
+    # Compute the correlation coefficient between the histograms
+    correlation = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
+    print(correlation)
+    # Check if the correlation coefficient is above the threshold
+    if correlation > threshold:
+        return True
+    else:
+        return False
 
 
 @st.cache_resource
@@ -228,14 +254,14 @@ def get_matching_keypoints(kp1, kp2, idxs):
 
 def process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors, lg_matcher,
                         device='cpu'):
-    kps1, descs1 = image_data['keypoints'], image_data['descriptors']
+    kps1, descs1 = image_data['keypoints'].to(device), image_data['descriptors'].to(device)
 
     # Your processing logic here
     # For simplicity, let's just calculate the match count as the number of keypoints
     # hw1 = torch.tensor((640,480), device=device)
     # hw2 = torch.tensor((640,480), device=device)
 
-    dists, idxs = lg_matcher(descs1, input_descriptors, KF.laf_from_center_scale_ori(kps1[None],
+    dists, idxs = lg_matcher(descs1.to(device), input_descriptors.to(device), KF.laf_from_center_scale_ori(kps1[None],
                                                                                      torch.ones(1, len(kps1), 1, 1,
                                                                                                 device=device)),
                              KF.laf_from_center_scale_ori(input_keypoints[None],
@@ -303,12 +329,12 @@ def process_match_image(folder_name, image_name, image_data, input_keypoints, in
 #     return top_matches
 
 def process_image_wrapper(args):
-    folder_name, image_name, image_data, input_keypoints, input_descriptors, lg_matcher = args
-    result = process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors, lg_matcher)
+    folder_name, image_name, image_data, input_keypoints, input_descriptors, lg_matcher,device = args
+    result = process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors, lg_matcher,device=device)
     return result
 
 
-def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, lg_matcher, top_x=5):
+def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, lg_matcher, top_x=5,device='cpu'):
     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
     progress_text = "Finding where you are, hold on tight!"
     current_image_count = 0
@@ -318,7 +344,7 @@ def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_
     for folder_name, folder_data in keypoints_dict.items():
         for image_name, image_data in folder_data.items():
             result = process_match_image(folder_name, image_name, image_data, input_keypoints, input_descriptors,
-                                         lg_matcher)
+                                         lg_matcher,device=device)
             top_matches.append(result)
             current_image_count += 1
             progress_bar.progress(current_image_count / total_images, text=progress_text)
@@ -341,9 +367,14 @@ def main():
     st.title('The Lost Student ICVL Project')
     with lock:
         uploaded_file = st.sidebar.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
-    device = 'cpu'
+    # device = '0'
+    device = K.utils.get_cuda_or_mps_device_if_available()
+    # device='cpu'
+    transform = T.Resize((640, 480))
+
+    print(device)
     with lock:
-        disk, lg_matcher = load_model()
+        disk, lg_matcher = load_model(device=device)
     num_features = 2048
     dir_path = os.path.dirname(os.path.realpath(__file__))
     dir_path = dir_path.replace("\\", "/")
@@ -365,6 +396,9 @@ def main():
     if uploaded_file is not None:
         with lock:
             input_image = load_image_from_web(uploaded_file)
+            orig_input_img = input_image.copy()
+            hist1 = calculate_color_histogram(orig_input_img)
+
         st.image(input_image[:, :, ::-1], caption='Uploaded Image', use_column_width=True)
         input_image = white_balance_grayworld(input_image)
 
@@ -381,11 +415,12 @@ def main():
         # input_image = cv.cvtColor(input_image,cv.COLOR_BGR2GRAY)
         input_image = kornia.image_to_tensor(input_image, keepdim=False)
         input_image = kornia.color.bgr_to_rgb(input_image)
-        input_image = K.geometry.resize(input_image, (640, 480)) / 255
+        # input_image = K.geometry.resize(input_image, (640, 480)) / 255
+        input_image = transform(input_image) / 255
         with lock:
-            input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image, disk=disk)
+            input_keypoints, input_descriptors = extract_keypoints_and_descriptors(input_image.to(device), disk=disk)
             top_matches = find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder,
-                                           lg_matcher)
+                                           lg_matcher,device=device)
         count_dict = defaultdict(int)
         for idx, (folder_name, image_name, match_count, _, top_match_keypoints, kps1, descs1, idxs) in enumerate(
                 top_matches):
@@ -398,11 +433,18 @@ def main():
             match_image = None
             with lock:
                 match_image = cv2.imread(image_path)
+                orig_match_img = match_image.copy()
+                hist2 = calculate_color_histogram(orig_match_img)
+                # if not compare_histograms(hist1,hist2):
+                #     print("not the same: ",image_path)
+                #     continue
             # match_image = white_balance_grayworld(match_image)
             # match_image = cv.resize(match_image, (1280,720),cv.INTER_LINEAR)
-            match_image = kornia.image_to_tensor(match_image, keepdim=False)
+            match_image = kornia.image_to_tensor(match_image, keepdim=False).to(device=device)
             match_image = kornia.color.bgr_to_rgb(match_image)
-            match_image = K.geometry.resize(match_image, (640, 480)) / 255
+            match_image = transform(match_image) / 255
+
+            # match_image = K.geometry.resize(match_image, (640, 480)) / 255
             match_keypoints = keypoints_dict[folder_name][image_name]['keypoints']
             print(top_match_keypoints.shape)
             print(idxs.shape)
