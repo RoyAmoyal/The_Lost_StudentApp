@@ -30,11 +30,10 @@ Jinja2==3.1.3
 jsonschema==4.21.1
 jsonschema-specifications==2023.12.1
 kiwisolver==1.4.5
-kornia==0.7.3.dev0
-kornia-moons==0.2.9
-kornia_rs==0.1.3
-lazy_loader==0.3
-lightglue==0.0
+kornia
+kornia-moons
+kornia_rs
+lazy_loader
 markdown-it-py==3.0.0
 MarkupSafe==2.1.5
 matplotlib==3.8.4
@@ -93,3 +92,4 @@ urllib3==2.2.1
 watchdog==4.0.0
 wheel==0.41.2
 xyzservices==2024.4.0
+lightglue @ https://github.com/cvg/LightGlue
