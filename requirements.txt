@@ -92,4 +92,4 @@ urllib3==2.2.1
 watchdog==4.0.0
 wheel==0.41.2
 xyzservices==2024.4.0
-lightglue @ https://github.com/cvg/LightGlue
+lightglue @ git+https://github.com/cvg/LightGlue
