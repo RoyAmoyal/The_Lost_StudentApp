@@ -21,20 +21,20 @@ from io import BytesIO
 from stqdm import stqdm
 import torchvision.transforms as T
 
-from LightGlue.lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
+from lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
 from pathlib import Path
-from LightGlue.lightglue.utils import load_image, rbd
-from LightGlue.lightglue import viz2d
+from lightglue.utils import load_image, rbd
+from lightglue import viz2d
 from skimage import exposure
-import os
+# import os
 
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+# os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # Apply histogram equalization to both images
 
 import torch
 import matplotlib
 
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 # device = K.utils.get_cuda_or_mps_device_if_available()
