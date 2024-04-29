@@ -622,12 +622,16 @@ def main():
     keypoints_file = "keypoints_descriptors.pkl"  # File to save/load keypoints and descriptors
 
     # Check if keypoints and descriptors file exists, load them if it does
-    if os.path.exists(keypoints_file):
-        keypoints_dict = load_keypoints_descriptors_from_file(keypoints_file)
-    else:
-        keypoints_dict = extract_keypoints_descriptors_dict(images_folder, extractor, device)
-        # Save keypoints and descriptors to file
-        save_keypoints_descriptors_to_file(keypoints_dict, keypoints_file)
+    if st.session_state['keypoints'] not in st.session_state:
+        if os.path.exists(keypoints_file):
+            keypoints_dict = load_keypoints_descriptors_from_file(keypoints_file)
+        else:
+            keypoints_dict = extract_keypoints_descriptors_dict(images_folder, extractor, device)
+            # Save keypoints and descriptors to file
+            save_keypoints_descriptors_to_file(keypoints_dict, keypoints_file)
+        st.session_state.keypoints = keypoints_dict
+    keypoints_dict = st.session_state.keypoints
+
     # uploaded_file = True
     destination = st.text_input("Enter Destination Number")
     locations = {'25': [31.26168698113933, 34.80166743349586],
