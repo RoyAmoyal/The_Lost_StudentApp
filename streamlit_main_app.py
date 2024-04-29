@@ -21,10 +21,10 @@ from io import BytesIO
 from stqdm import stqdm
 import torchvision.transforms as T
 
-from lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
+from LightGlue.lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
 from pathlib import Path
-from lightglue.utils import load_image, rbd
-from lightglue import viz2d
+from LightGlue.lightglue.utils import load_image, rbd
+from LightGlue.lightglue import viz2d
 from skimage import exposure
 import os
 
