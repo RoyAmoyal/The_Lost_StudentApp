@@ -81,9 +81,9 @@ tenacity==8.2.3
 tifffile==2023.4.12
 toml==0.10.2
 toolz==0.12.1
-torch==1.12.1+cu113
-torchaudio==0.12.1+cu113
-torchvision==0.13.1+cu113
+torch
+torchaudio
+torchvision
 tornado==6.4
 tqdm==4.66.2
 typing_extensions==4.11.0
