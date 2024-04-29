@@ -622,7 +622,7 @@ def main():
     keypoints_file = "keypoints_descriptors.pkl"  # File to save/load keypoints and descriptors
 
     # Check if keypoints and descriptors file exists, load them if it does
-    if st.session_state['keypoints'] not in st.session_state:
+    if 'keypoints' not in st.session_state:
         if os.path.exists(keypoints_file):
             keypoints_dict = load_keypoints_descriptors_from_file(keypoints_file)
         else:
