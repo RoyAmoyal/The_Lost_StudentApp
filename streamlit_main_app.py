@@ -1,5 +1,6 @@
 import concurrent
 import concurrent.futures
+import io
 
 import pickle
 from threading import Lock
@@ -26,7 +27,7 @@ from pathlib import Path
 from lightglue.utils import load_image, rbd
 from lightglue import viz2d
 from skimage import exposure
-# import os
+import os
 
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # Apply histogram equalization to both images
@@ -36,6 +37,8 @@ import matplotlib
 
 # matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
+
 
 # device = K.utils.get_cuda_or_mps_device_if_available()
 # @st.cache_resource  # 👈 Add the caching decorator
@@ -142,12 +145,19 @@ def save_keypoints_descriptors_to_file(keypoints_dict, file_path):
     with open(file_path, 'wb') as f:
         pickle.dump(keypoints_dict, f)
 
+class CPU_Unpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == 'torch.storage' and name == '_load_from_bytes':
+            return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
+        else:
+            return super().find_class(module, name)
 
 # Function to load keypoints and descriptors from file
 @st.cache_data
 def load_keypoints_descriptors_from_file(file_path):
     with open(file_path, 'rb') as f:
-        keypoints_dict = pickle.load(f)
+        keypoints_dict = CPU_Unpickler(f).load()
+        # keypoints_dict = pickle.load(f)
     return keypoints_dict
 
 
