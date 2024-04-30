@@ -202,7 +202,8 @@ def extract_keypoints_descriptors_dict(images_folder, extractor, device):
         for image_name in os.listdir(folder_path):
             image_path = os.path.join(folder_path, image_name)
             img = load_image(Path(image_path)).cpu().numpy()
-            img = exposure.equalize_hist(img)
+            # img = white_balance_grayworld(img)
+            # img = exposure.equalize_hist(img)
             img = torch.from_numpy(img).to(device)
 
             feats0 = extract_sift(img, extractor, device)
@@ -332,9 +333,10 @@ def process_match_image(folder_name, image_name, image_data, pred, lg_matcher,
         try:
             Fm, inliers = cv2.findFundamentalMat(
                 m_kpts0.detach().cpu().numpy(), m_kpts1.detach().cpu().numpy(), cv2.FM_RANSAC,
-                ransacReprojThreshold=1.0, confidence=0.99
+                ransacReprojThreshold=0.5, confidence=0.99
             )
             matches = inliers > 0
+
         except cv2.error as e:
             print("Error in cv2.findFundamentalMat:", e)
 
@@ -504,7 +506,7 @@ def process_and_match_image(uploaded_file, extractor, keypoints_dict, images_fol
         print(input_image.shape)
         input_image = input_image.transpose((2, 0, 1))
         input_image = torch.tensor(input_image / 255.0, dtype=torch.float).cpu().numpy()
-        input_image = exposure.equalize_hist(input_image)
+        # input_image = exposure.equalize_hist(input_image)
         input_image = torch.from_numpy(input_image).to(device)
 
         # input_image=input_image.to(device).unsqueeze(0)
