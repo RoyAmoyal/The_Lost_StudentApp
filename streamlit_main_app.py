@@ -22,20 +22,20 @@ from io import BytesIO
 from stqdm import stqdm
 import torchvision.transforms as T
 
-from lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
+from LightGlue.lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
 from pathlib import Path
-from lightglue.utils import load_image, rbd
-from lightglue import viz2d
+from LightGlue.lightglue.utils import load_image, rbd
+from LightGlue.lightglue import viz2d
 from skimage import exposure
 import os
 
-# os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # Apply histogram equalization to both images
 
 import torch
 import matplotlib
 
-# matplotlib.use('TkAgg')
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 
@@ -156,8 +156,8 @@ class CPU_Unpickler(pickle.Unpickler):
 @st.cache_data
 def load_keypoints_descriptors_from_file(file_path):
     with open(file_path, 'rb') as f:
-        keypoints_dict = CPU_Unpickler(f).load()
-        # keypoints_dict = pickle.load(f)
+        # keypoints_dict = CPU_Unpickler(f).load()
+        keypoints_dict = pickle.load(f)
     return keypoints_dict
 
 
@@ -202,7 +202,7 @@ def extract_keypoints_descriptors_dict(images_folder, extractor, device):
         for image_name in os.listdir(folder_path):
             image_path = os.path.join(folder_path, image_name)
             img = load_image(Path(image_path)).cpu().numpy()
-            # img = exposure.equalize_hist(img)
+            img = exposure.equalize_hist(img)
             img = torch.from_numpy(img).to(device)
 
             feats0 = extract_sift(img, extractor, device)
@@ -318,6 +318,8 @@ def get_matching_keypoints(kp1, kp2, idxs):
 
 def process_match_image(folder_name, image_name, image_data, pred, lg_matcher,
                         device='cpu'):
+    # image_data = image_data.to(device)
+    # pred = pred.to(device)
     matches01 = lg_matcher({"image0": image_data, "image1": pred})
     feats0, feats1, matches01 = [
         rbd(x) for x in [image_data, pred, matches01]
@@ -502,7 +504,7 @@ def process_and_match_image(uploaded_file, extractor, keypoints_dict, images_fol
         print(input_image.shape)
         input_image = input_image.transpose((2, 0, 1))
         input_image = torch.tensor(input_image / 255.0, dtype=torch.float).cpu().numpy()
-        # input_image = exposure.equalize_hist(input_image)
+        input_image = exposure.equalize_hist(input_image)
         input_image = torch.from_numpy(input_image).to(device)
 
         # input_image=input_image.to(device).unsqueeze(0)
@@ -529,12 +531,10 @@ def process_and_match_image(uploaded_file, extractor, keypoints_dict, images_fol
             top_matches = find_top_matches(pred, keypoints_dict, images_folder,
                                            lg_matcher, device=device)
         count_dict = defaultdict(int)
+        number_of_vis = 0
         for idx, (folder_name, image_name, match_count, _, m_kpts0, m_kpts1, matches) in enumerate(
                 top_matches):
             count_dict[folder_name] += 1
-
-            st.write(f"Match {idx + 1}: {folder_name}/{image_name}")
-            st.write(f"Number of matches: {match_count}")
 
             image_path = os.path.join(images_folder, folder_name, image_name)
             match_image = None
@@ -561,27 +561,32 @@ def process_and_match_image(uploaded_file, extractor, keypoints_dict, images_fol
             with lock:
                 print(match_image.shape)
                 print(input_image.squeeze(0).shape)
+                if number_of_vis < 1:
 
-                axes = viz2d.plot_images([match_image, input_image])
-                viz2d.plot_matches(m_kpts0, m_kpts1, color="lime", lw=0.2)
-                # viz2d.add_text(0, f'Stop after {matches["stop"]} layers', fs=20)
+                    st.write(f"Match {idx + 1}: {folder_name}/{image_name}")
+                    st.write(f"Number of matches: {match_count}")
 
-                # Assuming your matplotlib plot is generated as before
-                # Render the matplotlib plot to a buffer
-                buf = BytesIO()
-                plt.savefig(buf, format='png')
-                buf.seek(0)
+                    axes = viz2d.plot_images([match_image, input_image])
+                    viz2d.plot_matches(m_kpts0, m_kpts1, color="lime", lw=0.2)
+                    # viz2d.add_text(0, f'Stop after {matches["stop"]} layers', fs=20)
 
-                # Convert the buffer to a numpy array
-                buffer_img = np.frombuffer(buf.getvalue(), dtype=np.uint8)
-                plt.close()  # Close the matplotlib plot to free resources
+                    # Assuming your matplotlib plot is generated as before
+                    # Render the matplotlib plot to a buffer
+                    buf = BytesIO()
+                    plt.savefig(buf, format='png')
+                    buf.seek(0)
 
-                # Convert the numpy array to an OpenCV image
-                opencv_img = cv2.imdecode(buffer_img, 1)
-                # img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-                st.image(opencv_img[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
-                         use_column_width=True)
-                data_vis_images.append([idx,folder_name,image_name,opencv_img])
+                    # Convert the buffer to a numpy array
+                    buffer_img = np.frombuffer(buf.getvalue(), dtype=np.uint8)
+                    plt.close()  # Close the matplotlib plot to free resources
+
+                    # Convert the numpy array to an OpenCV image
+                    opencv_img = cv2.imdecode(buffer_img, 1)
+                    # img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+                    st.image(opencv_img[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
+                             use_column_width=True)
+                    data_vis_images.append([idx,folder_name,image_name,opencv_img])
+                    number_of_vis += 1
         st.session_state.vis_images = data_vis_images
         st.session_state.input_image_old = input_image_orig.copy()
         st.session_state.src_location = max(count_dict, key=count_dict.get)
@@ -594,10 +599,11 @@ def process_and_match_image(uploaded_file, extractor, keypoints_dict, images_fol
 
 src_location = None
 def main():
-
+    uploaded_file = None
     st.title('The Lost Student ICVL Project')
     with lock:
-        uploaded_file = st.sidebar.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
+        if uploaded_file is None:
+            uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
         if "input_image_old" not in st.session_state:
             st.session_state.input_image_old = None
 
@@ -633,7 +639,6 @@ def main():
     keypoints_dict = st.session_state.keypoints
 
     # uploaded_file = True
-    destination = st.text_input("Enter Destination Number")
     locations = {'25': [31.26168698113933, 34.80166743349586],
                  '35': [31.261743260802724, 34.80404991966534],
                  '37': [31.262244016475712, 34.80398969323603],
@@ -642,6 +647,7 @@ def main():
                  'lib_22': [31.262006833782113, 34.80103086668221],
                  'mexico': [31.26250825970978, 34.80571853121805]
                  }
+    destination = st.selectbox("Enter Destination Number", (locations.keys()))
 
     if destination and uploaded_file is not None:
         src_location = process_and_match_image(uploaded_file, extractor, keypoints_dict, images_folder, lg_matcher,
