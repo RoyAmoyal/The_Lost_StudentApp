@@ -1,0 +1,133 @@
+<div role="main">
+    <div class="box py-3 generalbox center clearfix">
+        <div class="no-overflow">
+            <h2 align="center"> <em> "The Freshman Problem - Where is my next class?" </em> </h2>
+            <p align="center"> Final project by </p>
+            <p align="center"> <b> Ron Haikin, Roy Amoyal and Omri Hirsch </b> </p>
+            <p align="center"> <a href="mailto:ronkh@post.bgu.ac.il"> ronkh@post.bgu.ac.il</a>,
+                               <a href="mailto:amoyalr@post.bgu.ac.il"> amoyalr@post.bgu.ac.il</a>,
+                               <a href="mailto:omrihir@post.bgu.ac.il"> omrihir@post.bgu.ac.il</a> </p>
+
+            <hr>
+
+            <h3 align="left"> Introduction </h3>
+            <p align="justify">
+                Imagine being a freshman at Ben-Gurion University, stepping onto campus with excitement and anticipation, <br>
+                only to find yourself lost in a maze of buildings, unsure of where your next class is located. <br>
+                It's a common scenario – asking strangers for directions, rushing through unfamiliar corridors, risking being late for class. <br>
+                <br>
+                In addressing this challenge, we embarked on a mission driven by empathy and innovation. <br>
+                What if we could harness the power of computer vision to guide these students seamlessly through their campus journey? <br>
+                Thus, our project was born, with a vision to empower students to effortlessly navigate their academic environment using nothing but their smartphone's camera. <br>
+                <br>
+                Our goal was clear: to eliminate the confusion of building numbers and convoluted navigation instructions. <br>
+                Instead, we sought to provide a solution that intuitively understands the student's location within Ben-Gurion University, <br>
+                allowing for swift and precise guidance to their destination. <br>
+                <br>
+                Central to our endeavor was the formidable task of localization – the ability to pinpoint the student's exact whereabouts with a single snapshot from their camera. <br>
+                This one-shot image became the cornerstone of our approach, unlocking the potential to revolutionize campus navigation for students.
+            </p>
+
+            <h3 align="left"> Approach and Method</h3>
+            <p align="justify">
+                <h4 align="left"> Algorithmic:</h4>
+
+                Our strategy for addressing the location detection challenge revolved around employing sophisticated methods for feature extraction and matching within images.<br>
+                <br>
+                Initiating our process, we recognized the necessity of assembling a comprehensive repository of images <br>
+                capturing key landmarks and areas across the university campus.<br>
+                From this repository, we a like database and precomputed the pertinent features.<br>
+                <br>
+                In determining the most suitable algorithms, we conducted an extensive exploration of classical approaches such as <a href="https://en.wikipedia.org/wiki/Scale-invariant_feature_transform"> SIFT</a>, <a href="https://docs.opencv.org/3.4/d1/d89/tutorial_py_orb.html"> ORB</a>, and <a href="https://docs.opencv.org/3.4/db/d70/tutorial_akaze_matching.html"> AKAZE</a>, all Gradient based.<br>
+                Following thorough evaluation, <a href="https://en.wikipedia.org/wiki/Scale-invariant_feature_transform"> SIFT</a> emerged as the optimal choice due to its proficiency in identifying key points and generating distinctive descriptors akin to individualized fingerprints.<br>
+                <br>
+                However, in practical application, we encountered limitations with <a href="https://en.wikipedia.org/wiki/Scale-invariant_feature_transform"> SIFT</a>'s feature matching capabilities.<br>
+                To overcome this obstacle, we turned to deep learning techniques, specifically leveraging the "Super Glue" neural network.<br>
+                This advanced model facilitated more accurate and robust feature matching between images, thereby enhancing the efficacy of our solution.<br>
+                <br>
+                Subsequently, the task of accurately identifying the depicted building within a user's image prompted the utilization of the K-Nearest Neighbors (<a href="https://he.wikipedia.org/wiki/%D7%90%D7%9C%D7%92%D7%95%D7%A8%D7%99%D7%AA%D7%9D_%D7%A9%D7%9B%D7%9F_%D7%A7%D7%A8%D7%95%D7%91"> KNN</a>) algorithm, with a parameter value (k) of 5, for efficient classification.
+                
+                <h4 align="left"> UI:</h4>
+
+                In the realm of user interface design, we opted for Streamlit.io as our primary development platform for both web and mobile applications, drawn to its intuitive Python-based framework.<br>
+                <br>
+                Within the application interface, users were afforded various interactive features, including the ability to seamlessly upload images, track progress via informative progress bars,<br>
+                harness GPU acceleration for accelerated computations, and access navigational assistance utilizing Google Maps integration.<br>
+                <br>
+                Moreover, to ensure widespread accessibility and usability,<br>
+                we <a href="https://theloststudentapp-297hbs2hr4g9vse8swhytw.streamlit.app/"> deployed the web application to a server hosted by Streamlit</a>, thereby facilitating effortless access and utilization for all users seeking streamlined campus navigation solutions.
+            </p>
+
+            <h3 align="left"> Results</h3>
+            <p align="justify">
+                Describe and show here your results. Using images/videos is particularly welcome.
+            </p>
+
+            <h3 align="left"> Project's Video</h3>
+            <p align="justify">
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/LYcXAEZfQFY?enablejsapi=1"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen="" id="annoto_player_id_pfi78r" data-gtm-yt-inspected-7="true"
+                    title="Ben-Gurion University of the Negev 2019" class="annoto-player-element"></iframe>
+            <div class="annoto-timeline-dock" style="float: none; height: 48px; width: 560px;"><nn-timeline
+                    style="--nn-zindex: 100; display: block; width: 100%;"> <nnc-timeline ref="timelineElement"
+                        chart-series.bind="chartSeries" chart-resolution.bind="resolution" chart-hiding.bind="isOverlay"
+                        chart-height.bind="chartHeight" pd.bind="pd" pp.bind="pp"
+                        nncevent.trigger="timelineEventHandle($event)"
+                        class="au-target annoto nnc nnc-timeline hydrated" au-target-id="361" aria-hidden="true"
+                        tabindex="-1"><!----> <!--anchor--> <!--anchor-->
+                        <div class="nnc-timeline-chart-container"></div>
+                        <div class="nnc-timeline-cta-container"><nnc-timeline-cta ref="ctaElement" slot="cta"
+                                pd.bind="pd" cta-list.bind="ctaList"
+                                tooltip-position.bind="isOverlay ? 'top' : 'bottom'"
+                                class="au-target nnc nnc-timeline-cta hydrated"
+                                au-target-id="362"><nnc-timeline-icons-loader class="hydrated"
+                                    style="display: none;"><nnc-icon role="img" class="nnc nnc-icon hydrated"
+                                        aria-label="choice sign" name="choice-sign"></nnc-icon><nnc-icon role="img"
+                                        class="nnc nnc-icon hydrated" aria-label="radio group"
+                                        name="radio-group"></nnc-icon><nnc-icon role="img" class="nnc nnc-icon hydrated"
+                                        aria-label="check list"
+                                        name="check-list"></nnc-icon></nnc-timeline-icons-loader>
+                                <div class="nnc-timeline-cta-tooltips"></div>
+                            </nnc-timeline-cta></div>
+                        <div class="nnc-timeline-progressbar-container"><nnc-timeline-progress-bar slot="progressbar"
+                                pd.bind="pd" pp.bind="pp" class="au-target nnc nnc-timeline-progress-bar hydrated"
+                                au-target-id="364"></nnc-timeline-progress-bar></div>
+                    </nnc-timeline><!--anchor--> </nn-timeline></div>
+            </p>
+
+            <h3 align="left"> Conclusions</h3>
+            <p align="justify">
+                Discuss the results vis-a-vis your goals and make conclusions.
+            </p>
+
+            <h3 align="left"> Additional Information</h3>
+            <p align="justify">
+            </p>
+            <ul>
+                <li> Full project report (<a href="link_to_reports__pdf_file">PDF</a>).
+                </li>
+                <li> Oral presentation slides (<a href="link_to_presentation_file_ptt">ppt</a>
+                    , <a href="http://link_to_pdf_presentation_file">PDF</a>).
+                </li>
+                <li> Project's video file (<a href="link_to_youtube_video">video_file</a>).
+                </li>
+                <li> <a href="link_to_executable">Downloadable executable</a> (mention the appropriate
+                    platform).
+                </li>
+                <li> <a href="link_to_code_file_or_page">Downloadable source code</a>.
+                </li>
+            </ul>
+            Make sure that all the downloadable files are included in your zip file!
+            <p></p>
+
+            <h3 align="left"> References </h3>
+            <p align="justify">
+                List any references from the literature you have consulted or used.
+            </p>
+            <notoc></notoc>
+        </div>
+    </div>
+    <div class="modified">Last modified: Wednesday, 9 March 2022, 5:37 PM</div>
+</div>
