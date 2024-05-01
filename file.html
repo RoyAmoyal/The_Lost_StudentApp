@@ -10,7 +10,7 @@
 
             <hr>
 
-            <h3 align="left"> Introduction </h3>
+            <h2 align="left"> Introduction </h2>
             <p align="justify">
                 Imagine being a freshman at Ben-Gurion University, stepping onto campus with excitement and anticipation, <br>
                 only to find yourself lost in a maze of buildings, unsure of where your next class is located. <br>
@@ -28,9 +28,9 @@
                 This one-shot image became the cornerstone of our approach, unlocking the potential to revolutionize campus navigation for students.
             </p>
 
-            <h3 align="left"> Approach and Method</h3>
+            <h2 align="left"> Approach and Method</h2>
             <p align="justify">
-                <h4 align="left"> Algorithmic:</h4>
+                <h3 align="left"> Algorithmic:</h3>
 
                 Our strategy for addressing the location detection challenge revolved around employing sophisticated methods for feature extraction and matching within images.<br>
                 <br>
@@ -41,21 +41,45 @@
                 In determining the most suitable algorithms, we conducted an extensive exploration of classical approaches such as <a href="https://en.wikipedia.org/wiki/Scale-invariant_feature_transform"> SIFT</a>, <a href="https://docs.opencv.org/3.4/d1/d89/tutorial_py_orb.html"> ORB</a>, and <a href="https://docs.opencv.org/3.4/db/d70/tutorial_akaze_matching.html"> AKAZE</a>, all Gradient based.<br>
                 Following thorough evaluation, <a href="https://en.wikipedia.org/wiki/Scale-invariant_feature_transform"> SIFT</a> emerged as the optimal choice due to its proficiency in identifying key points and generating distinctive descriptors akin to individualized fingerprints.<br>
                 <br>
-                However, in practical application, we encountered limitations with <a href="https://en.wikipedia.org/wiki/Scale-invariant_feature_transform"> SIFT</a>'s feature matching capabilities.<br>
-                To overcome this obstacle, we turned to deep learning techniques, specifically leveraging the "Super Glue" neural network.<br>
-                This advanced model facilitated more accurate and robust feature matching between images, thereby enhancing the efficacy of our solution.<br>
+                <h4 align=""left"> SIFT:</h4>
+                There are some corner detectors like Harris etc. <br>
+                They are rotation-invariant, which means, even if the image is rotated, we can find the same corners. <br>
+                It is obvious because corners remain corners in rotated image also. <br>
+                But what about scaling? A corner may not be a corner if the image is scaled. <br>
+                For example, check the simple image below. <br>
+                A corner in a small image within a small window is flat when it is zoomed in the same window. <br>
+                So Harris corner detector and others are not scale invariant. <br>
+                <image src="https://docs.opencv.org/4.x/sift_scale_invariant.jpg" width="200" height="120"></image> <br>
+                Here comes into play SIFT algorithm: <br>
                 <br>
-                Subsequently, the task of accurately identifying the depicted building within a user's image prompted the utilization of the K-Nearest Neighbors (<a href="https://he.wikipedia.org/wiki/%D7%90%D7%9C%D7%92%D7%95%D7%A8%D7%99%D7%AA%D7%9D_%D7%A9%D7%9B%D7%9F_%D7%A7%D7%A8%D7%95%D7%91"> KNN</a>) algorithm, with a parameter value (k) of 5, for efficient classification.
+                SIFT is a computer vision algorithm used for detecting and describing local features in images. <br>
+                SIFT is rotational invariant, as also, scale invariant. <br>
+                It's widely used for tasks like object recognition, image stitching, and matching. <br>
+                <image src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*bPN9KN1Y7Lkl8_8wfNtQgA.png" width="400" height="300"></image>
+                <br>
                 
-                <h4 align="left"> UI:</h4>
-
-                In the realm of user interface design, we opted for Streamlit.io as our primary development platform for both web and mobile applications, drawn to its intuitive Python-based framework.<br>
+                However, in practical application, we encountered limitations with <a href="https://en.wikipedia.org/wiki/Scale-invariant_feature_transform"> SIFT</a>'s feature matching capabilities.<br>
+                To overcome this obstacle, we turned to deep learning techniques, specifically leveraging the <a href="https://github.com/cvg/LightGlue">"Light Glue"</a> neural network.<br>
+                <h4 align=""left"> Light Glue:</h4>
+                This is an advanced model facilitated more accurate and robust feature matching between images, thereby enhancing the efficacy of our solution.<br>
+                Light Glue is a lightweight feature matcher with high accuracy and blazing fast inference.<br>
+                It takes as input a set of keypoints and descriptors for each image and returns the indices of corresponding points.<br>
+                The architecture is based on adaptive pruning techniques, in both network width and depth <a href="https://arxiv.org/pdf/2306.13643">check out the paper for more details.</a>
                 <br>
-                Within the application interface, users were afforded various interactive features, including the ability to seamlessly upload images, track progress via informative progress bars,<br>
-                harness GPU acceleration for accelerated computations, and access navigational assistance utilizing Google Maps integration.<br>
+                <image src="https://github.com/cvg/LightGlue/raw/main/assets/easy_hard.jpg" width="400" height="300"></image>
+                <h4 align=""left"> Finding the best matching Building - KNN algorithm:</h4>
+                Subsequently, the task of accurately identifying the depicted building within a user's image prompted the utilization of the K-Nearest Neighbors (<a href="https://he.wikipedia.org/wiki/%D7%90%D7%9C%D7%92%D7%95%D7%A8%D7%99%D7%AA%D7%9D_%D7%A9%D7%9B%D7%9F_%D7%A7%D7%A8%D7%95%D7%91"> KNN</a>) algorithm, with a parameter value (k) of 5, for efficient classification.<br>
                 <br>
-                Moreover, to ensure widespread accessibility and usability,<br>
-                we <a href="https://theloststudentapp-297hbs2hr4g9vse8swhytw.streamlit.app/"> deployed the web application to a server hosted by Streamlit</a>, thereby facilitating effortless access and utilization for all users seeking streamlined campus navigation solutions.
+                <image src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/KnnClassification.svg/330px-KnnClassification.svg.png" width="200" height="200"></image>
+                <br>
+                <h3 align="left"> UI and App Development:</h3>
+                <h4 align="left"> Streamlit.io:</h4>
+                <image src="https://streamlit.io/images/brand/streamlit-logo-primary-colormark-darktext.png" width="80" height="60"></image> <br>
+                <br>
+                In the realm of user interface design, we've chosen <a href="https://streamlit.io/"> Streamlit.io</a> as our cornerstone development platform for web and mobile applications, captivated by its intuitive Python-based framework.<br>
+                It offers an effortless experience for both phone and computer use, coupled with easy programming capabilities.<br>
+                With <a href="https://streamlit.io/"> Streamlit.io</a>, users can enjoy seamless interactions, upload images effortlessly, monitor progress with informative progress bars, utilize GPU acceleration for swift computations, and leverage Google Maps integration for navigation assistance.<br>
+                Deployed to a Streamlit-hosted server, <a href="https://the-lost-student-app.streamlit.app/">our application</a> ensures widespread accessibility and effortless utilization, offering streamlined solutions for campus navigation.<br>
             </p>
 
             <h3 align="left"> Results</h3>
