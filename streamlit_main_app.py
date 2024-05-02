@@ -576,7 +576,7 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
                     # img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
                     st.image(opencv_img[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
                              use_column_width=True)
-                    data_vis_images.append([idx,folder_name,image_name,opencv_img])
+                    data_vis_images.append([idx,folder_name,image_name])
                     number_of_vis += 1
         st.session_state.vis_images = data_vis_images
         st.session_state.input_image_old = input_image_orig.copy()
@@ -585,7 +585,9 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
         top_matches = None
         count_dict = None
     else:
-        for idx,folder_name,image_name,image in st.session_state.vis_images:
+        for idx,folder_name,image_name in st.session_state.vis_images:
+            image_path = os.path.join(images_folder, folder_name, image_name)
+            image= cv2.imread(image_path)
             st.image(image[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
                      use_column_width=True)
         return st.session_state.src_location
