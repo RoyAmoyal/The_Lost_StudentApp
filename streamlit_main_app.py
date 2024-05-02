@@ -22,20 +22,20 @@ from io import BytesIO
 from stqdm import stqdm
 import torchvision.transforms as T
 
-from lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
+from LightGlue.lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
 from pathlib import Path
-from lightglue.utils import load_image, rbd
-from lightglue import viz2d
+from LightGlue.lightglue.utils import load_image, rbd
+from LightGlue.lightglue import viz2d
 from skimage import exposure
 import os
 
-# os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # Apply histogram equalization to both images
 
 import torch
 import matplotlib
 
-# matplotlib.use('TkAgg')
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 
@@ -488,8 +488,8 @@ def handle_destination_map(src_location):
     # destination = st.text_input("Enter Destination Number")
 
 
-
-def process_and_match_image(uploaded_file, extractor, keypoints_dict, images_folder, lg_matcher, device):
+@st.cache_data
+def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_folder, _lg_matcher, device):
     with lock:
         input_image = load_image_from_web(uploaded_file)
         input_image_orig = input_image.copy()
@@ -513,25 +513,13 @@ def process_and_match_image(uploaded_file, extractor, keypoints_dict, images_fol
         # input_image = input_image.permute(0, 3, 1, 2)  # Or input_image = input_image.transpose(1, 3)
 
         print(input_image.shape)
-        # input_image = cv.imread('images/97/20240416_105208.jpg')  # queryImage
-        # input_image = cv.imread('../48f4f37a-d51b-46cf-93a9-1c3c6f737872.jpg')  # queryImage
-        # input_image = cv.imread('what.jpg')  # queryImage
-
-        # input_image = white_balance_grayworld(input_image)
-        # st.image(input_image[:, :, ::-1], caption='Uploaded Image', use_column_width=True)
 
         std_size = (640, 480)
-        # input_image = cv.resize(input_image, std_size)
-        # input_image = cv.resize(input_image, (1280,720), cv.INTER_LINEAR)
-        # input_image = cv.cvtColor(input_image,cv.COLOR_BGR2GRAY)
-        # input_image = kornia.image_to_tensor(input_image, keepdim=False)
-        # input_image = kornia.color.bgr_to_rgb(input_image)
-        # # input_image = K.geometry.resize(input_image, (640, 480)) / 255
-        # input_image = transform(input_image) / 255
+
         with lock:
-            pred = extract_sift(input_image.to(device), extractor=extractor, device=device)
-            top_matches = find_top_matches(pred, keypoints_dict, images_folder,
-                                           lg_matcher, device=device)
+            pred = extract_sift(input_image.to(device), extractor=_extractor, device=device)
+            top_matches = find_top_matches(pred, _keypoints_dict, images_folder,
+                                           _lg_matcher, device=device)
         count_dict = defaultdict(int)
         number_of_vis = 0
         for idx, (folder_name, image_name, match_count, _, m_kpts0, m_kpts1, matches) in enumerate(
@@ -640,21 +628,22 @@ def main():
         st.session_state.keypoints = keypoints_dict
     keypoints_dict = st.session_state.keypoints
 
-    # uploaded_file = True
-    locations = {'25': [31.26168698113933, 34.80166743349586],
-                 '35': [31.261743260802724, 34.80404991966534],
-                 '37': [31.262244016475712, 34.80398969323603],
-                 '42': [31.262282558939823, 34.80537674427964],
-                 '97': [31.26422049296359, 34.80166218505895],
-                 'lib_22': [31.262006833782113, 34.80103086668221],
-                 'mexico': [31.26250825970978, 34.80571853121805]
-                 }
-    destination = st.selectbox("Enter Destination Number", (locations.keys()))
+    if 'locations' not in st.session_state:
+        # uploaded_file = True
+        locations = {'25': [31.26168698113933, 34.80166743349586],
+                     '35': [31.261743260802724, 34.80404991966534],
+                     '37': [31.262244016475712, 34.80398969323603],
+                     '42': [31.262282558939823, 34.80537674427964],
+                     '97': [31.26422049296359, 34.80166218505895],
+                     'lib_22': [31.262006833782113, 34.80103086668221],
+                     'mexico': [31.26250825970978, 34.80571853121805]
+                     }
+        st.session_state.locations = locations
+    destination = st.selectbox("Enter Destination Number", (st.session_state.locations.keys()))
 
     if destination and uploaded_file is not None:
         src_location = process_and_match_image(uploaded_file, extractor, keypoints_dict, images_folder, lg_matcher,
                                                device)
-        st.session_state['src_location'] = src_location
 
         # with lock:
         #     input_image = load_image_from_web(uploaded_file)
@@ -756,16 +745,16 @@ def main():
 
 
         if src_location:
-            print("Your Locattion is: ", src_location)
-            st.write("our Locattion is: ", src_location)
+            print("Your Location is: ", src_location)
+            st.write("Your Location is: ", src_location)
             # Check if a destination has been entered
             # Assuming most_common_folder is defined elsewhere
-            response = get_directions_response(*locations[src_location], *locations[destination])
+            response = get_directions_response(*st.session_state.locations[src_location], *st.session_state.locations[destination])
             m = create_map(response)
-            m.save('./route_map.html')
-            with open("route_map.html", "r") as f:
-                html_content = f.read()
-            st.components.v1.html(html_content, width=800, height=500)
+            # m.save('./route_map.html')
+            # with open("route_map.html", "r") as f:
+            #     html_content = f.read()
+            st.components.v1.html(m._repr_html_(), width=800, height=500)
 
 
 if __name__ == "__main__":
