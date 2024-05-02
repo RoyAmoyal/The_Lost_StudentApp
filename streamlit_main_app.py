@@ -111,7 +111,7 @@ def compare_histograms(hist1, hist2, threshold=0.15):
         return False
 
 
-@st.cache
+# @st.cache
 def load_model(device='cpu'):
     extractor = SIFT(max_num_keypoints=2048).eval().to(device)  # load the extractor
     matcher = LightGlue(features="sift").eval().to(device)
@@ -153,7 +153,7 @@ class CPU_Unpickler(pickle.Unpickler):
             return super().find_class(module, name)
 
 # Function to load keypoints and descriptors from file
-@st.cache_data
+@st.cache_data(max_entries=1, ttl=3600)
 def load_keypoints_descriptors_from_file(file_path):
     with open(file_path, 'rb') as f:
         # keypoints_dict = CPU_Unpickler(f).load()
