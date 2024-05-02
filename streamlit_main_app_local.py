@@ -647,10 +647,11 @@ def main():
                      }
         st.session_state.locations = locations
     destination = st.selectbox("Enter Destination Number", (st.session_state.locations.keys()))
-
+    src_location = 35
     if destination and uploaded_file is not None:
-        src_location = process_and_match_image(uploaded_file, extractor, keypoints_dict, images_folder, lg_matcher,
-                                               device)
+        with lock:
+            src_location = process_and_match_image(uploaded_file, extractor, keypoints_dict, images_folder, lg_matcher,
+                                                   device)
 
         # with lock:
         #     input_image = load_image_from_web(uploaded_file)
