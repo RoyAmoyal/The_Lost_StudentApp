@@ -24,7 +24,7 @@ import torchvision.transforms as T
 
 from lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
 from pathlib import Path
-from lightglue.utils import load_image, rbd
+from lightglue.utils import load_image, rbd,read_image,numpy_image_to_torch
 from lightglue import viz2d
 from skimage import exposure
 import os
@@ -201,11 +201,14 @@ def extract_keypoints_descriptors_dict(images_folder, extractor, device):
 
         for image_name in os.listdir(folder_path):
             image_path = os.path.join(folder_path, image_name)
-            img = load_image(Path(image_path)).cpu().numpy()
+            # img = load_image(Path(image_path)).cpu().numpy()
+            img = read_image(Path(image_path))
+
             img = cv2.resize(img,(640,480))
             # img = white_balance_grayworld(img)
             # img = exposure.equalize_hist(img)
-            img = torch.from_numpy(img).to(device)
+            img = numpy_image_to_torch(img).to(device)
+            # img = torch.from_numpy(img).to(device)
 
             feats0 = extract_sift(img, extractor, device)
             folder_data[image_name] = feats0
