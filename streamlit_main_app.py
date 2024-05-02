@@ -153,7 +153,7 @@ class CPU_Unpickler(pickle.Unpickler):
             return super().find_class(module, name)
 
 # Function to load keypoints and descriptors from file
-@st.cache_data(max_entries=1, ttl=3600)
+@st.cache_data(max_entries=1)
 def load_keypoints_descriptors_from_file(file_path):
     with open(file_path, 'rb') as f:
         # keypoints_dict = CPU_Unpickler(f).load()
