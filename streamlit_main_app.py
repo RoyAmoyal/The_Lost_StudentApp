@@ -599,6 +599,9 @@ def main():
     st.title('The Lost Student ICVL Project')
     with lock:
         if uploaded_file is None:
+            # Delete all the items in Session state
+            for key in st.session_state.keys():
+                del st.session_state[key]
             uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
         if "input_image_old" not in st.session_state:
             st.session_state.input_image_old = None
