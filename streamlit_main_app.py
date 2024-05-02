@@ -202,6 +202,7 @@ def extract_keypoints_descriptors_dict(images_folder, extractor, device):
         for image_name in os.listdir(folder_path):
             image_path = os.path.join(folder_path, image_name)
             img = load_image(Path(image_path)).cpu().numpy()
+            img = cv2.resize(img,(640,480))
             # img = white_balance_grayworld(img)
             # img = exposure.equalize_hist(img)
             img = torch.from_numpy(img).to(device)
@@ -425,6 +426,7 @@ def find_top_matches(pred, keypoints_dict, images_folder, lg_matcher, top_x=5, d
 # @st.cache_data
 def load_image_from_web(uploaded_file):
     input_image = cv2.imdecode(np.fromstring(uploaded_file.read(), np.uint8), cv2.IMREAD_COLOR)
+    input_image = cv2.resize(input_image,(640,480))
     return input_image
 
 
@@ -499,7 +501,7 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
         # hist1 = calculate_color_histogram(input_image_orig)
     data_vis_images = []
     if not is_similar(input_image_orig, st.session_state.input_image_old):
-        input_image_orig = input_image.copy()
+        st.session_state.input_image_old = input_image_orig
 
         st.image(input_image[:, :, ::-1], caption='Uploaded Image', use_column_width=True)
         # input_image = white_balance_grayworld(input_image)
@@ -579,7 +581,6 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
                     data_vis_images.append([idx,folder_name,image_name])
                     number_of_vis += 1
         st.session_state.vis_images = data_vis_images
-        st.session_state.input_image_old = input_image_orig.copy()
         st.session_state.src_location = max(count_dict, key=count_dict.get)
         data_vis_images = None
         top_matches = None
