@@ -111,7 +111,7 @@ def compare_histograms(hist1, hist2, threshold=0.15):
         return False
 
 
-@st.cache_resource
+@st.cache
 def load_model(device='cpu'):
     extractor = SIFT(max_num_keypoints=2048).eval().to(device)  # load the extractor
     matcher = LightGlue(features="sift").eval().to(device)
@@ -521,76 +521,76 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
         print(input_image.shape)
 
         std_size = (640, 480)
-        count_dict = defaultdict(int)
-        number_of_vis = 0
+
         with lock:
             pred = extract_sift(input_image.to(device), extractor=_extractor, device=device)
             top_matches = find_top_matches(pred, _keypoints_dict, images_folder,
                                            _lg_matcher, device=device)
+        count_dict = defaultdict(int)
+        number_of_vis = 0
+        for idx, (folder_name, image_name, match_count, _, m_kpts0, m_kpts1, matches) in enumerate(
+                top_matches):
+            count_dict[folder_name] += 1
 
-            for idx, (folder_name, image_name, match_count, _, m_kpts0, m_kpts1, matches) in enumerate(
-                    top_matches):
-                count_dict[folder_name] += 1
+            image_path = os.path.join(images_folder, folder_name, image_name)
+            match_image = None
+            with lock:
+                match_image = load_image(Path(image_path))
 
-                image_path = os.path.join(images_folder, folder_name, image_name)
-                match_image = None
-                with lock:
-                    match_image = load_image(Path(image_path))
+                # orig_match_img = match_image.copy()
+                # hist2 = calculate_color_histogram(orig_match_img)
+                # if not compare_histograms(hist1,hist2):
+                #     print("not the same: ",image_path)
+                #     continue
+            # match_image = white_balance_grayworld(match_image)
+            # match_image = cv.resize(match_image, (1280,720),cv.INTER_LINEAR)
+            # match_image = kornia.image_to_tensor(match_image, keepdim=False).to(device=device)
+            # match_image = kornia.color.bgr_to_rgb(match_image)
+            # match_image = transform(match_image) / 255
 
-                    # orig_match_img = match_image.copy()
-                    # hist2 = calculate_color_histogram(orig_match_img)
-                    # if not compare_histograms(hist1,hist2):
-                    #     print("not the same: ",image_path)
-                    #     continue
-                # match_image = white_balance_grayworld(match_image)
-                # match_image = cv.resize(match_image, (1280,720),cv.INTER_LINEAR)
-                # match_image = kornia.image_to_tensor(match_image, keepdim=False).to(device=device)
-                # match_image = kornia.color.bgr_to_rgb(match_image)
-                # match_image = transform(match_image) / 255
+            # match_image = K.geometry.resize(match_image, (640, 480)) / 255
+            # match_keypoints = keypoints_dict[folder_name][image_name]
+            # print(top_match_keypoints.shape)
+            # print(idxs.shape)
+            # print(KF.laf_from_center_scale_ori(input_keypointis[None].cpu()).shape)
+            # print(KF.laf_from_center_scale_ori(match_keypoints[None].cpu()).shape)
+            with lock:
+                print(match_image.shape)
+                print(input_image.squeeze(0).shape)
+                if number_of_vis < 1:
 
-                # match_image = K.geometry.resize(match_image, (640, 480)) / 255
-                # match_keypoints = keypoints_dict[folder_name][image_name]
-                # print(top_match_keypoints.shape)
-                # print(idxs.shape)
-                # print(KF.laf_from_center_scale_ori(input_keypointis[None].cpu()).shape)
-                # print(KF.laf_from_center_scale_ori(match_keypoints[None].cpu()).shape)
-                with lock:
-                    print(match_image.shape)
-                    print(input_image.squeeze(0).shape)
-                    if number_of_vis < 1:
+                    st.write(f"Match {idx + 1}: {folder_name}/{image_name}")
+                    st.write(f"Number of matches: {match_count}")
 
-                        st.write(f"Match {idx + 1}: {folder_name}/{image_name}")
-                        st.write(f"Number of matches: {match_count}")
+                    axes = viz2d.plot_images([match_image, input_image])
+                    viz2d.plot_matches(m_kpts0, m_kpts1, color="lime", lw=0.2)
+                    # viz2d.add_text(0, f'Stop after {matches["stop"]} layers', fs=20)
 
-                        axes = viz2d.plot_images([match_image, input_image])
-                        viz2d.plot_matches(m_kpts0, m_kpts1, color="lime", lw=0.2)
-                        # viz2d.add_text(0, f'Stop after {matches["stop"]} layers', fs=20)
+                    # Assuming your matplotlib plot is generated as before
+                    # Render the matplotlib plot to a buffer
+                    buf = BytesIO()
+                    plt.savefig(buf, format='png')
+                    buf.seek(0)
 
-                        # Assuming your matplotlib plot is generated as before
-                        # Render the matplotlib plot to a buffer
-                        buf = BytesIO()
-                        plt.savefig(buf, format='png')
-                        buf.seek(0)
+                    # Convert the buffer to a numpy array
+                    buffer_img = np.frombuffer(buf.getvalue(), dtype=np.uint8)
+                    plt.close()  # Close the matplotlib plot to free resources
 
-                        # Convert the buffer to a numpy array
-                        buffer_img = np.frombuffer(buf.getvalue(), dtype=np.uint8)
-                        plt.close()  # Close the matplotlib plot to free resources
-
-                        # Convert the numpy array to an OpenCV image
-                        opencv_img = cv2.imdecode(buffer_img, 1)
-                        # img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-                        st.image(opencv_img[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
-                                 use_column_width=True)
-                        data_vis_images.append([idx,folder_name,image_name,opencv_img])
-                        number_of_vis += 1
-            st.session_state.vis_images = data_vis_images
-            st.session_state.input_image_old = input_image_orig.copy()
-            st.session_state.src_location = max(count_dict, key=count_dict.get)
-        else:
-            for idx,folder_name,image_name,image in st.session_state.vis_images:
-                st.image(image[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
-                         use_column_width=True)
-            return st.session_state.src_location
+                    # Convert the numpy array to an OpenCV image
+                    opencv_img = cv2.imdecode(buffer_img, 1)
+                    # img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+                    st.image(opencv_img[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
+                             use_column_width=True)
+                    data_vis_images.append([idx,folder_name,image_name,opencv_img])
+                    number_of_vis += 1
+        st.session_state.vis_images = data_vis_images
+        st.session_state.input_image_old = input_image_orig.copy()
+        st.session_state.src_location = max(count_dict, key=count_dict.get)
+    else:
+        for idx,folder_name,image_name,image in st.session_state.vis_images:
+            st.image(image[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
+                     use_column_width=True)
+        return st.session_state.src_location
     return max(count_dict, key=count_dict.get)
 
 src_location = None
