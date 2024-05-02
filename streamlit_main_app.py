@@ -409,7 +409,13 @@ def find_top_matches(pred, keypoints_dict, images_folder, lg_matcher, top_x=5, d
         for image_name, image_data in folder_data.items():
             result = process_match_image(folder_name, image_name, image_data, pred,
                                          lg_matcher, device=device)
-            top_matches.append(result)
+            if len(top_matches) > top_x:
+                for index,match in enumerate(top_matches.reverse()):
+                    if match[2] > result[2]:
+                        top_matches[index] = result
+                        break
+            else:
+                top_matches.append(result)
             current_image_count += 1
             progress_bar.progress(current_image_count / total_images, text=progress_text)
             print(f"{progress_text} ({current_image_count}/{total_images})")
