@@ -410,7 +410,7 @@ def find_top_matches(pred, keypoints_dict, images_folder, lg_matcher, top_x=5, d
             result = process_match_image(folder_name, image_name, image_data, pred,
                                          lg_matcher, device=device)
             if len(top_matches) > top_x:
-                for index,match in enumerate(top_matches.reverse()):
+                for index,match in enumerate(top_matches[::-1]):
                     if match[2] > result[2]:
                         top_matches[index] = result
                         break
