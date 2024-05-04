@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 
 
+
 def sobel_operator(image):
     # Convert the image to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -42,6 +43,7 @@ def find_local_maxima(magnitude,suspect_threshold=65, threshold_neighborhood=0.9
 
 # Load an image
 image = cv2.imread('../images/25/20240416_104918.jpg')
+image = cv2.imread('../images/lib_22/20240416_104937.jpg')
 
 # Resize the original image to 1280x720
 resized_image = cv2.resize(image, (1280, 720))
@@ -51,8 +53,8 @@ sobel_x, sobel_y, magnitude = sobel_operator(image)
 
 
 # Find local maximum points
-threshold = 1  # Adjust this threshold to control the number of local maximum points
-local_maxima = find_local_maxima(magnitude, threshold)
+threshold = 0.99  # Adjust this threshold to control the number of local maximum points
+local_maxima = find_local_maxima(magnitude, threshold_neighborhood=threshold)
 
 # Convert the magnitude image to grayscale
 magnitude_gray = cv2.cvtColor(magnitude, cv2.COLOR_GRAY2BGR)

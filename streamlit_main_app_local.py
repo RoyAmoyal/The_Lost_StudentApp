@@ -409,14 +409,7 @@ def find_top_matches(pred, keypoints_dict, images_folder, lg_matcher, top_x=5, d
         for image_name, image_data in folder_data.items():
             result = process_match_image(folder_name, image_name, image_data, pred,
                                          lg_matcher, device=device)
-            if len(top_matches) > top_x:
-                for index, match in enumerate(top_matches[::-1]):
-                    if match[2] > result[2]:
-                        top_matches[index] = result
-                        break
-            else:
-                top_matches.append(result)
-            # top_matches.append(result)
+            top_matches.append(result)
             current_image_count += 1
             progress_bar.progress(current_image_count / total_images, text=progress_text)
             print(f"{progress_text} ({current_image_count}/{total_images})")
@@ -558,7 +551,7 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
             with lock:
                 print(match_image.shape)
                 print(input_image.squeeze(0).shape)
-                if number_of_vis < 1:
+                if number_of_vis < 5:
 
                     st.write(f"Match {idx + 1}: {folder_name}/{image_name}")
                     st.write(f"Number of matches: {match_count}")
@@ -647,11 +640,10 @@ def main():
                      }
         st.session_state.locations = locations
     destination = st.selectbox("Enter Destination Number", (st.session_state.locations.keys()))
-    src_location = 35
+
     if destination and uploaded_file is not None:
-        with lock:
-            src_location = process_and_match_image(uploaded_file, extractor, keypoints_dict, images_folder, lg_matcher,
-                                                   device)
+        src_location = process_and_match_image(uploaded_file, extractor, keypoints_dict, images_folder, lg_matcher,
+                                               device)
 
         # with lock:
         #     input_image = load_image_from_web(uploaded_file)
@@ -763,7 +755,7 @@ def main():
             # with open("route_map.html", "r") as f:
             #     html_content = f.read()
             st.components.v1.html(m._repr_html_(), width=800, height=500)
-        uploaded_file = None
+
 
 if __name__ == "__main__":
     main()
