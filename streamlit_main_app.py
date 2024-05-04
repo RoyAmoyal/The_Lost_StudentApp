@@ -40,8 +40,6 @@ import matplotlib.pyplot as plt
 
 
 
-# device = K.utils.get_cuda_or_mps_device_if_available()
-# @st.cache_resource  # 👈 Add the caching decorator
 lock = Lock()
 
 from geopy.geocoders import Nominatim
@@ -162,13 +160,9 @@ def load_keypoints_descriptors_from_file(file_path):
 
 
 def extract_keypoints_and_descriptors(img, extractor, num_features=2048):
-    # image = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     with torch.inference_mode():
-        # inp = torch.cat([img1, img2], dim=0)
         features1 = extractor(img, num_features, pad_if_not_divisible=True)[0]
         kps1, descs1 = features1.keypoints, features1.descriptors
-        # kps2, descs2 = features2.keypoints, features2.descriptors
-        # lafs1 = KF.laf_from_center_scale_ori(kps1[None], torch.ones(1, len(kps1), 1, 1, device=device))
 
     return kps1, descs1
 
@@ -221,41 +215,6 @@ def extract_keypoints_descriptors_dict(images_folder, extractor, device):
     progress_bar.empty()
     return keypoints_dict
 
-
-# @st.cache_resource(show_spinner = False)
-# def extract_keypoints_descriptors_dict(images_folder):
-#     keypoints_dict = {}
-#     progress_text = "Doing some heavy lifting know so you won't have to wait later."
-#     progress_bar = st.progress(0, text=progress_text)
-#     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
-#     current_image_count = 0
-#
-#     for folder_name in os.listdir(images_folder):
-#         folder_path = os.path.join(images_folder, folder_name)
-#
-#         folder_data = {}
-#
-#         for image_name in os.listdir(folder_path):
-#             image_path = os.path.join(folder_path, image_name)
-#             image = cv.imread(image_path)
-#             image = white_balance_grayworld(image)
-#
-#             # image = white_balance_grayworld(image)
-#
-#             # image = cv.resize(image, (1280,720),cv.INTER_LINEAR)
-#             image = kornia.image_to_tensor(image, keepdim=False)
-#
-#             image = kornia.color.bgr_to_rgb(image)
-#             image = K.geometry.resize(image, (640, 480)) / 255
-#             keypoints, descriptors = extract_keypoints_and_descriptors(image)
-#             folder_data[image_name] = {'keypoints': keypoints, 'descriptors': descriptors}
-#
-#             current_image_count += 1
-#             progress_bar.progress(current_image_count / total_images, text=progress_text)
-#
-#         keypoints_dict[folder_name] = folder_data
-#     progress_bar.empty()
-#     return keypoints_dict
 def match_keypoints(descriptors1, descriptors2):
     bf = cv2.BFMatcher()
 
@@ -272,49 +231,6 @@ def match_keypoints(descriptors1, descriptors2):
     return good_matches.copy()
 
 
-#
-# def find_top_matches(input_keypoints,input_descriptors, keypoints_dict, images_folder, top_x=20):
-#     def get_matching_keypoints(kp1, kp2, idxs):
-#         mkpts1 = kp1[idxs[:, 0]]
-#         mkpts2 = kp2[idxs[:, 1]]
-#         return mkpts1, mkpts2
-#     top_matches = []
-#     progress_text = "Finding where you are, hold on tight!"
-#     progress_bar = st.progress(0, text=progress_text)
-#     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
-#     current_image_count = 0
-#
-#     for folder_name, folder_data in keypoints_dict.items():
-#         for image_name, image_data in folder_data.items():
-#             image_path = os.path.join(images_folder, folder_name, image_name)
-#             # image = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-#             # inp = torch.cat([img1, img2], dim=0)
-#             kps1, descs1 = image_data['keypoints'],  image_data['descriptors']
-#
-#             dists, idxs = lg_matcher(descs1, input_descriptors, KF.laf_from_center_scale_ori(kps1[None], torch.ones(1, len(kps1), 1, 1, device=device)), KF.laf_from_center_scale_ori(input_keypoints[None], torch.ones(1, len(input_keypoints), 1, 1, device=device)))
-#
-#             mkpts1, mkpts2 = get_matching_keypoints(kps1, input_keypoints, idxs)
-#
-#             Fm, inliers = cv2.findFundamentalMat(
-#                 mkpts1.detach().cpu().numpy(), mkpts2.detach().cpu().numpy(), cv2.USAC_MAGSAC, 1.0, 0.999, 100000
-#             )
-#             inliers = inliers > 0
-#             # inliers1,inliers2,good_matches = find_inliers(input_keypoints,input_descriptors,image_data['keypoints'],image_data['descriptors'])
-#             # good_matches = match_keypoints(input_descriptors.copy(), descriptors.copy())
-#             # print(inliers.shape)
-#             match_count = inliers.shape[0]
-#             # l2_distance = sum([m.distance for m in good_matches]) if good_matches else float('inf')
-#             top_matches.append((folder_name, image_name, match_count, 0, inliers,kps1,descs1,idxs))
-#
-#             current_image_count += 1
-#             progress_bar.progress(current_image_count / total_images, text=progress_text)
-#     progress_bar.empty()
-#
-#     top_matches = sorted(top_matches,key=lambda x: x[2], reverse=True)
-#     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
-#
-#     return top_matches
-
 def get_matching_keypoints(kp1, kp2, idxs):
     mkpts1 = kp1[idxs[:, 0]]
     mkpts2 = kp2[idxs[:, 1]]
@@ -323,12 +239,10 @@ def get_matching_keypoints(kp1, kp2, idxs):
 
 def process_match_image(folder_name, image_name, image_data, pred, lg_matcher,
                         device='cpu'):
-    # image_data = image_data.to(device)
-    # pred = pred.to(device)
     matches01 = lg_matcher({"image0": image_data, "image1": pred})
     feats0, feats1, matches01 = [
         rbd(x) for x in [image_data, pred, matches01]
-    ]  # remove batch dimension
+    ]
 
     kpts0, kpts1, matches = feats0["keypoints"], feats1["keypoints"], matches01["matches"]
     m_kpts0, m_kpts1 = kpts0[matches[..., 0]], kpts1[matches[..., 1]]
@@ -346,54 +260,9 @@ def process_match_image(folder_name, image_name, image_data, pred, lg_matcher,
 
     match_count = matches.shape[0]
 
-    # match_count = m_kpts0.shape[0]
     return (folder_name, image_name, match_count, 0, m_kpts0, m_kpts1, matches)
 
 
-# def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder, top_x=5):
-#     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
-#     progress_text = "Finding where you are, hold on tight!"
-#     current_image_count = 0
-#     top_matches = []
-#     progress_bar = st.progress(0, text=progress_text)
-#     def update_progress(result):
-#         nonlocal current_image_count
-#         current_image_count += 1
-#         print(f"{progress_text} ({current_image_count}/{total_images})")
-#         progress_bar.progress(current_image_count / total_images, text=progress_text)
-#         top_matches.append(result)
-#
-#     with Pool(cpu_count()) as pool:
-#         for folder_name, folder_data in keypoints_dict.items():
-#             for image_name, image_data in folder_data.items():
-#                 pool.apply_async(process_image, args=(folder_name, image_name, image_data, input_keypoints, input_descriptors), callback=update_progress)
-#         pool.close()
-#         pool.join()
-#     progress_bar.empty()
-#     top_matches.sort(key=lambda x: x[2], reverse=True)
-#     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
-#
-#     return top_matches
-# #
-
-# def find_top_matches(input_keypoints, input_descriptors, keypoints_dict, images_folder,lg_matcher, top_x=5):
-#     total_images = sum(len(files) for _, _, files in os.walk(images_folder))
-#     progress_text = "Finding where you are, hold on tight!"
-#     top_matches = []
-#
-#     with Pool(1) as pool:
-#         progress_bar = stqdm(pool.imap(process_image_wrapper, ((folder_name, image_name, image_data, input_keypoints, input_descriptors,lg_matcher)
-#                                                               for folder_name, folder_data in keypoints_dict.items()
-#                                                               for image_name, image_data in folder_data.items())),
-#                              total=total_images, desc=progress_text)
-#
-#         for result in progress_bar:
-#             top_matches.append(result)
-#
-#     top_matches.sort(key=lambda x: x[2], reverse=True)
-#     top_matches = top_matches[:top_x] if top_x > 0 else top_matches
-#
-#     return top_matches
 
 def process_image_wrapper(args):
     folder_name, image_name, image_data, input_keypoints, input_descriptors, lg_matcher, device = args
@@ -500,8 +369,7 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
         input_image = load_image_from_web(uploaded_file)
         input_image_orig = input_image.copy()
         uploaded_file = None
-        # orig_input_img = input_image.copy()
-        # hist1 = calculate_color_histogram(input_image_orig)
+
     data_vis_images = []
     if not is_similar(input_image_orig, st.session_state.input_image_old):
         st.session_state.input_image_old = input_image_orig
@@ -512,11 +380,7 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
         print(input_image.shape)
         input_image = input_image.transpose((2, 0, 1))
         input_image = torch.tensor(input_image / 255.0, dtype=torch.float).cpu().numpy()
-        # input_image = exposure.equalize_hist(input_image)
         input_image = torch.from_numpy(input_image).to(device)
-
-        # input_image=input_image.to(device).unsqueeze(0)
-        # input_image = input_image.permute(0, 3, 1, 2)  # Or input_image = input_image.transpose(1, 3)
 
         print(input_image.shape)
 
@@ -537,23 +401,7 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
             with lock:
                 match_image = load_image(Path(image_path))
 
-                # orig_match_img = match_image.copy()
-                # hist2 = calculate_color_histogram(orig_match_img)
-                # if not compare_histograms(hist1,hist2):
-                #     print("not the same: ",image_path)
-                #     continue
-            # match_image = white_balance_grayworld(match_image)
-            # match_image = cv.resize(match_image, (1280,720),cv.INTER_LINEAR)
-            # match_image = kornia.image_to_tensor(match_image, keepdim=False).to(device=device)
-            # match_image = kornia.color.bgr_to_rgb(match_image)
-            # match_image = transform(match_image) / 255
 
-            # match_image = K.geometry.resize(match_image, (640, 480)) / 255
-            # match_keypoints = keypoints_dict[folder_name][image_name]
-            # print(top_match_keypoints.shape)
-            # print(idxs.shape)
-            # print(KF.laf_from_center_scale_ori(input_keypointis[None].cpu()).shape)
-            # print(KF.laf_from_center_scale_ori(match_keypoints[None].cpu()).shape)
             with lock:
                 print(match_image.shape)
                 print(input_image.squeeze(0).shape)
@@ -564,10 +412,6 @@ def process_and_match_image(uploaded_file, _extractor, _keypoints_dict, images_f
 
                     axes = viz2d.plot_images([match_image, input_image])
                     viz2d.plot_matches(m_kpts0, m_kpts1, color="lime", lw=0.2)
-                    # viz2d.add_text(0, f'Stop after {matches["stop"]} layers', fs=20)
-
-                    # Assuming your matplotlib plot is generated as before
-                    # Render the matplotlib plot to a buffer
                     buf = BytesIO()
                     plt.savefig(buf, format='png')
                     buf.seek(0)
@@ -624,19 +468,16 @@ def main():
     num_features = 2048
     dir_path = os.path.dirname(os.path.realpath(__file__))
     dir_path = dir_path.replace("\\", "/")
-    print(dir_path)
     images_folder = dir_path + "/The_Lost_Student_App/images"
     images_folder = "D:/University/msc/semester a/intro to computational biology and vision/final_project/The_Lost_Student_App/images"
     images_folder = dir_path + "/images"
-    keypoints_file = "keypoints_descriptors.pkl"  # File to save/load keypoints and descriptors
+    keypoints_file = "keypoints_descriptors.pkl"
 
-    # Check if keypoints and descriptors file exists, load them if it does
     if 'keypoints' not in st.session_state:
         if os.path.exists(keypoints_file):
             keypoints_dict = load_keypoints_descriptors_from_file(keypoints_file)
         else:
             keypoints_dict = extract_keypoints_descriptors_dict(images_folder, extractor, device)
-            # Save keypoints and descriptors to file
             save_keypoints_descriptors_to_file(keypoints_dict, keypoints_file)
         st.session_state.keypoints = keypoints_dict
     keypoints_dict = st.session_state.keypoints
@@ -646,10 +487,8 @@ def main():
         locations = {'25': [31.26168698113933, 34.80166743349586],
                      '35': [31.261743260802724, 34.80404991966534],
                      '37': [31.262244016475712, 34.80398969323603],
-                     # '42': [31.262282558939823, 34.80537674427964],
                      '97': [31.26422049296359, 34.80166218505895],
                      'lib_22': [31.262006833782113, 34.80103086668221],
-                     # 'mexico': [31.26250825970978, 34.80571853121805]
                      }
         st.session_state.locations = locations
     destination = st.selectbox("Enter Destination Number", (st.session_state.locations.keys()))
@@ -658,115 +497,13 @@ def main():
         src_location = process_and_match_image(uploaded_file, extractor, keypoints_dict, images_folder, lg_matcher,
                                                device)
 
-        # with lock:
-        #     input_image = load_image_from_web(uploaded_file)
-        #     input_image_orig = input_image.copy()
-        #     uploaded_file = None
-        #     orig_input_img = input_image.copy()
-        #     hist1 = calculate_color_histogram(orig_input_img)
-        # if not is_similar(input_image_orig,st.session_state.input_image_old):
-        #     input_image_orig = input_image.copy()
-        #
-        #     st.image(input_image[:, :, ::-1], caption='Uploaded Image', use_column_width=True)
-        #     # input_image = white_balance_grayworld(input_image)
-        #     input_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
-        #     print(input_image.shape)
-        #     input_image = input_image.transpose((2, 0, 1))
-        #     input_image = torch.tensor(input_image / 255.0, dtype=torch.float).cpu().numpy()
-        #     # input_image = exposure.equalize_hist(input_image)
-        #     input_image = torch.from_numpy(input_image).to(device)
-        #
-        #
-        #
-        #     # input_image=input_image.to(device).unsqueeze(0)
-        #     # input_image = input_image.permute(0, 3, 1, 2)  # Or input_image = input_image.transpose(1, 3)
-        #
-        #     print(input_image.shape)
-        #     # input_image = cv.imread('images/97/20240416_105208.jpg')  # queryImage
-        #     # input_image = cv.imread('../48f4f37a-d51b-46cf-93a9-1c3c6f737872.jpg')  # queryImage
-        #     # input_image = cv.imread('what.jpg')  # queryImage
-        #
-        #     # input_image = white_balance_grayworld(input_image)
-        #     # st.image(input_image[:, :, ::-1], caption='Uploaded Image', use_column_width=True)
-        #
-        #     std_size = (640, 480)
-        #     # input_image = cv.resize(input_image, std_size)
-        #     # input_image = cv.resize(input_image, (1280,720), cv.INTER_LINEAR)
-        #     # input_image = cv.cvtColor(input_image,cv.COLOR_BGR2GRAY)
-        #     # input_image = kornia.image_to_tensor(input_image, keepdim=False)
-        #     # input_image = kornia.color.bgr_to_rgb(input_image)
-        #     # # input_image = K.geometry.resize(input_image, (640, 480)) / 255
-        #     # input_image = transform(input_image) / 255
-        #     with lock:
-        #         pred = extract_sift(input_image.to(device), extractor=extractor,device=device)
-        #         top_matches = find_top_matches(pred, keypoints_dict, images_folder,
-        #                                        lg_matcher,device=device)
-        #     count_dict = defaultdict(int)
-        #     for idx, (folder_name, image_name, match_count, _,m_kpts0,m_kpts1,matches) in enumerate(
-        #             top_matches):
-        #         count_dict[folder_name] += 1
-        #
-        #         st.write(f"Match {idx + 1}: {folder_name}/{image_name}")
-        #         st.write(f"Number of matches: {match_count}")
-        #
-        #         image_path = os.path.join(images_folder, folder_name, image_name)
-        #         match_image = None
-        #         with lock:
-        #             match_image = load_image(Path(image_path))
-        #
-        #             # orig_match_img = match_image.copy()
-        #             # hist2 = calculate_color_histogram(orig_match_img)
-        #             # if not compare_histograms(hist1,hist2):
-        #             #     print("not the same: ",image_path)
-        #             #     continue
-        #         # match_image = white_balance_grayworld(match_image)
-        #         # match_image = cv.resize(match_image, (1280,720),cv.INTER_LINEAR)
-        #         # match_image = kornia.image_to_tensor(match_image, keepdim=False).to(device=device)
-        #         # match_image = kornia.color.bgr_to_rgb(match_image)
-        #         # match_image = transform(match_image) / 255
-        #
-        #         # match_image = K.geometry.resize(match_image, (640, 480)) / 255
-        #         # match_keypoints = keypoints_dict[folder_name][image_name]
-        #         # print(top_match_keypoints.shape)
-        #         # print(idxs.shape)
-        #         # print(KF.laf_from_center_scale_ori(input_keypointis[None].cpu()).shape)
-        #         # print(KF.laf_from_center_scale_ori(match_keypoints[None].cpu()).shape)
-        #         with lock:
-        #             print(match_image.shape)
-        #             print(input_image.squeeze(0).shape)
-        #
-        #             axes = viz2d.plot_images([match_image, input_image])
-        #             viz2d.plot_matches(m_kpts0, m_kpts1, color="lime", lw=0.2)
-        #             # viz2d.add_text(0, f'Stop after {matches["stop"]} layers', fs=20)
-        #
-        #             # Assuming your matplotlib plot is generated as before
-        #             # Render the matplotlib plot to a buffer
-        #             buf = BytesIO()
-        #             plt.savefig(buf, format='png')
-        #             buf.seek(0)
-        #
-        #             # Convert the buffer to a numpy array
-        #             buffer_img = np.frombuffer(buf.getvalue(), dtype=np.uint8)
-        #             plt.close()  # Close the matplotlib plot to free resources
-        #
-        #             # Convert the numpy array to an OpenCV image
-        #             opencv_img = cv2.imdecode(buffer_img, 1)
-        #             # img_matches = cv.drawMatches(input_image, input_keypoints, match_image, match_keypoints, top_match_keypoints, None, flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-        #             st.image(opencv_img[:, :, ::-1], caption=f'Match {idx + 1}: {folder_name}/{image_name}',
-        #                      use_column_width=True)
-        #     st.session_state.input_image_old = input_image.detach().cpu().numpy().copy()
 
 
         if src_location:
             print("Your Location is: ", src_location)
             st.write("Your Location is: ", src_location)
-            # Check if a destination has been entered
-            # Assuming most_common_folder is defined elsewhere
             response = get_directions_response(*st.session_state.locations[src_location], *st.session_state.locations[destination])
             m = create_map(response)
-            # m.save('./route_map.html')
-            # with open("route_map.html", "r") as f:
-            #     html_content = f.read()
             st.components.v1.html(m._repr_html_(), width=800, height=500)
 
 
